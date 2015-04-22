@@ -1,9 +1,12 @@
 HTML_DIR = ''
-from flask import Flask, send_from_directory, request, jsonify
+from flask import Flask, send_from_directory # , request, jsonify
 from flask_sockets import Sockets
 
 app = Flask(__name__)
 sockets = Sockets(app)
+
+host = None
+clients = []
 
 
 @app.route('/')
@@ -17,28 +20,38 @@ def host_view():
     return send_from_directory(HTML_DIR, 'host.html')
 
 
-@app.route('/offers',  methods=['GET', 'POST'])
-def offers_view():
-    '''This view is to create a session. POSTing will create a new AdvenShare
-    session, and a GET request will return a list of active sessions'''
-    if request.method == 'POST':
-        offers.append(request.json)
-        return "Created", 201
-    elif request.method == 'GET':
-        return jsonify({"offers": offers})
+# TODO: not sure whether the pub-sub approach here will work during WebRTC
+# Connection negociation
+
+@sockets.route('/ws/client')
+def client_ws_view(ws):
+    print("Client connected")
+    clients.append(ws)
+    try:
+        while(True):
+            msg = ws.receive()
+            print("client: %s" % msg)
+            if host is not None and msg is not None:
+                host.send(msg)
+    except:
+        clients.remove(ws)
+        print("Client disconnected")
 
 
-@app.route('/answers',  methods=['GET', 'POST'])
-def answers_view():
-    '''This view is to respond to a session. POSTing will create a new
-    AdvenShare session, and a GET request will return a list of active
-    sessions'''
-    if request.method == 'POST':
-        answers.append(request.json)
-        return "Created", 201
-    elif request.method == 'GET':
-        return jsonify({"answers": answers})
-
-
-if __name__ == '__main__':
-    app.run(debug=True, ssl_context='adhoc')
+@sockets.route('/ws/host')
+def host_ws_view(ws):
+    print("Host connected")
+    global host
+    if host is not None:
+        return "Error: Only one host at a time"
+    host = ws
+    try:
+        while(True):
+            msg = ws.receive()
+            print("host: %s" % msg)
+            if msg is not None:
+                for client in clients:
+                    client.send(msg)
+    except:
+        host = None
+        print("Host disconnected")

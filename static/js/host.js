@@ -6,6 +6,35 @@ var video = document.createElement("video");
 video.setAttribute("width", 1024);
 video.setAttribute("height", 768);
 
+var peerConnection = null;
+
+var ws = new WebSocket("wss://localhost:8000/ws/host");
+
+ws.onopen = function(event) {
+    console.log("Websocket Opened");
+}
+
+ws.onmessage = function (evt) {
+    if (!peerConnection) {
+        console.log("Got a websocket message before we created a stream");
+        return;
+    }
+
+    var signal = JSON.parse(evt.data);
+    if(signal.sdp) {
+        console.log("Setting Remote Description");
+        peerConnection.setRemoteDescription(new mozRTCSessionDescription(signal));
+    }
+    else if(signal.candidate) {
+        console.log("Adding ICE Candidate");
+        peerConnection.addIceCandidate(new mozRTCIceCandidate(signal));
+    }
+    else {
+        console.log("Unrecognized websocket message: " + evt.data);
+    }
+};
+
+
 function getusermedia_error(err, params) {
     if (params.video.mediaSource) {
         if (location.protocol != "https:") {
@@ -51,10 +80,14 @@ function startSession() {
             // implementation seems to squash it pretty well though!
             peerConnection = new mozRTCPeerConnection();
             peerConnection.addStream(stream);
+            // send any ice candidates to the other peer
+            peerConnection.onicecandidate = function (evt) {
+                ws.send(JSON.stringify(evt.candidate));
+            };
+
             peerConnection.createOffer(function(offer) {
                 peerConnection.setLocalDescription(offer, function() {
-                    ajax.post('/offers', null, offer, function() {
-                        console.log("POSTed session");});
+                    ws.send(JSON.stringify(offer));
                 }, peerConnectionError);
             }, peerConnectionError);
         }, function (err) { getusermedia_error(err, constraints); });
@@ -62,6 +95,7 @@ function startSession() {
         getusermedia_error(e, constraints);
     }
 }
+
 
 function stopSession() {
     video.mozSrcObject.stop();
