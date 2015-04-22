@@ -3,11 +3,8 @@ var stop = document.getElementById("stop_button");
 var message = document.getElementById("message");
 var host_capture = document.getElementById("host_capture");
 var video = document.createElement("video");
-video.setAttribute("width", 640);
-video.setAttribute("height", 480);
-
-var audio = document.createElement("audio");
-audio.setAttribute("controls", true);
+video.setAttribute("width", 1024);
+video.setAttribute("height", 768);
 
 function getusermedia_error(err, params) {
     if (params.video.mediaSource) {
@@ -30,6 +27,10 @@ function getusermedia_error(err, params) {
     // stopMedia();
 }
 
+function peerConnectionError(err) {
+    console.log("Got error: " + err);
+}
+
 function startSession() {
     constraints = {
         video: {
@@ -46,10 +47,16 @@ function startSession() {
             host_capture.appendChild(video);
             video.mozSrcObject = stream;
             video.play();
-            //stopbuttons.appendChild(snapshot);
-            host_capture.appendChild(audio);
-            audio.mozSrcObject = stream;
-            audio.play();
+            // don't play the audio locally or we get feedback. The WebRTC
+            // implementation seems to squash it pretty well though!
+            peerConnection = new mozRTCPeerConnection();
+            peerConnection.addStream(stream);
+            peerConnection.createOffer(function(offer) {
+                peerConnection.setLocalDescription(offer, function() {
+                    ajax.post('/offers', null, offer, function() {
+                        console.log("POSTed session");});
+                }, peerConnectionError);
+            }, peerConnectionError);
         }, function (err) { getusermedia_error(err, constraints); });
     } catch(e) {
         getusermedia_error(e, constraints);
@@ -60,9 +67,6 @@ function stopSession() {
     video.mozSrcObject.stop();
     video.mozSrcObject = null;
     host_capture.removeChild(video);
-    audio.mozSrcObject.stop();
-    audio.mozSrcObject = null;
-    host_capture.removeChild(audio);
 
     stop.style.display = "none";
     start.style.display = "block";
