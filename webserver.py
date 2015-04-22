@@ -17,4 +17,4 @@ def host_view():
     return send_from_directory(HTML_DIR, 'host.html')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, ssl_context='adhoc')
