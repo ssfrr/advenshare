@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <link href="static/css/style.css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Welcome to AdvenShare</h1>
+<p>You are a guest</p>
+<div id="connect-form">
+    <select id="session-select">
+        <option value=0>Monkey Island</option>
+        <option value=1>Day of the Tentacle</option>
+    </select>
+    <input value="Name" id="name-field" type="text">
+    <input value="Connect" onclick="connectToSession();" type="button">
+</div> <!-- connect-form -->
+
+<div id="guest_video"></div>
+<div id="message"></div>
+<div id="disconnect_button" style="display:none">
+    <input value="Disconnect" onclick="disconnectFromSession();" type="button">
+</div>
+</body>
+<script src="static/js/ajax.js"></script>
+<script src="static/js/guest.js"></script>
+</html>

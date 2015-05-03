@@ -1,13 +1,30 @@
+function randomstring(L){
+    var s= '';
+    var randomchar=function(){
+        var n= Math.floor(Math.random()*62);
+        if(n<10) return n; //1-10
+        if(n<36) return String.fromCharCode(n+55); //A-Z
+        return String.fromCharCode(n+61); //a-z
+    }
+    while(s.length< L) s+= randomchar();
+    return s;
+}
+
+var sharedStream = null;
 var start = document.getElementById("start_button");
 var stop = document.getElementById("stop_button");
 var message = document.getElementById("message");
 var host_capture = document.getElementById("host_capture");
 var video = document.createElement("video");
+//var myID = randomstring(20);
+// for now just use a fixed ID so we're easy to connect to
+var myID = "abcd";
 video.setAttribute("width", 1024);
 video.setAttribute("height", 768);
 
-var peerConnection = null;
+var guests = {};
 
+// TODO: figure out how not to hard-code the hostname but use wss
 var ws = new WebSocket("wss://localhost:8000/ws/host");
 
 ws.onopen = function(event) {
@@ -15,22 +32,45 @@ ws.onopen = function(event) {
 }
 
 ws.onmessage = function (evt) {
-    if (!peerConnection) {
-        console.log("Got a websocket message before we created a stream");
-        return;
+    var msg = JSON.parse(evt.data);
+    if(msg.type == "offer") {
+        pc = new mozRTCPeerConnection();
+        pc.setRemoteDescription(new mozRTCSessionDescription(msg.signal), function() {
+            pc.createAnswer(function(answer) {
+                pc.setLocalDescription(answer, function() {
+                    // send the answer to the remote connection
+                    ws.send(JSON.stringify({
+                        'type': 'answer',
+                        'signal': answer,
+                        'guestID': msg.guestID,
+                        'hostID': myID}));
+                }, function() {
+                    console.log("setLocalDescription Failed");
+                })
+            }, function() {
+                console.log("createAnswer Failed");
+            })
+        }, function() {
+            console.log("setRemoteDescription Failed");
+        });
+        pc.addStream(sharedStream);
+        pc.onicecandidate = function (evt) {
+            ws.send(JSON.stringify({
+                'type': 'candidate',
+                'signal': evt.candidate,
+                'guestID': msg.guestID,
+                'hostID': myID}));
+        };
+        // store the new peerConnection in our list of guests
+        guests[msg.guestID] = {'id': msg.guestID, 'pc': pc};
     }
-
-    var signal = JSON.parse(evt.data);
-    if(signal.sdp) {
-        console.log("Setting Remote Description");
-        peerConnection.setRemoteDescription(new mozRTCSessionDescription(signal));
-    }
-    else if(signal.candidate) {
+    else if(msg.type == "candidate") {
+        guest = guests[msg.guestID];
         console.log("Adding ICE Candidate");
-        peerConnection.addIceCandidate(new mozRTCIceCandidate(signal));
+        guest.pc.addIceCandidate(new mozRTCIceCandidate(msg.signal));
     }
     else {
-        console.log("Unrecognized websocket message: " + evt.data);
+        console.log("Unrecognized websocket message: " + msg);
     }
 };
 
@@ -60,7 +100,9 @@ function peerConnectionError(err) {
     console.log("Got error: " + err);
 }
 
-function startSession() {
+
+// takes a callback that's called with the stream
+function openSharedStream(cb) {
     constraints = {
         video: {
             mozMediaSource: "window",
@@ -76,29 +118,31 @@ function startSession() {
             host_capture.appendChild(video);
             video.mozSrcObject = stream;
             video.play();
-            // don't play the audio locally or we get feedback. The WebRTC
-            // implementation seems to squash it pretty well though!
-            peerConnection = new mozRTCPeerConnection();
-            peerConnection.addStream(stream);
-            // send any ice candidates to the other peer
-            peerConnection.onicecandidate = function (evt) {
-                ws.send(JSON.stringify(evt.candidate));
-            };
-
-            peerConnection.createOffer(function(offer) {
-                peerConnection.setLocalDescription(offer, function() {
-                    ws.send(JSON.stringify(offer));
-                }, peerConnectionError);
-            }, peerConnectionError);
+            cb(stream);
         }, function (err) { getusermedia_error(err, constraints); });
     } catch(e) {
         getusermedia_error(e, constraints);
     }
 }
 
+function startSession() {
+    var name = document.getElementById("name-field").value;
+    var sessionName = document.getElementById("game-name-field").value;
+
+    openSharedStream(function(stream) {
+        sharedStream = stream;
+        ws.send(JSON.stringify({
+            "type": "announce",
+            "hostID": myID,
+            "name": name,
+            "sessionName": sessionName
+        }))
+    });
+}
+
 
 function stopSession() {
-    video.mozSrcObject.stop();
+    sharedStream.stop();
     video.mozSrcObject = null;
     host_capture.removeChild(video);
 
