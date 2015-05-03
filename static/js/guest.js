@@ -29,11 +29,12 @@ ws.onopen = function(event) {
 ws.onmessage = function (evt) {
     try {
         var msg = JSON.parse(evt.data);
-    }
-    catch
-    if(msg.type == "answer") {
     } catch(e) {
+        console.log(evt.data);
         console.log(e);
+    }
+    if(msg.type == "answer") {
+        peerConnection.setRemoteDescription(new mozRTCSessionDescription(msg.signal));
     }
     else if(msg.type == "candidate") {
         console.log("Adding ICE Candidate");
@@ -49,7 +50,7 @@ function peerConnectionError(err) {
 }
 
 function connectToSession() {
-    var peerConnection = new mozRTCPeerConnection();
+    peerConnection = new mozRTCPeerConnection();
     var el = document.getElementById("session-select");
     //var sessionID = el.options[el.selectedIndex].value;
     // TODO: get session ID from form
@@ -57,12 +58,12 @@ function connectToSession() {
     var name = document.getElementById("name-field").value;
 
     // send any ice candidates to the other peer
-    peerConnection.onicecandidate = function (evt) {
+    peerConnection.onicecandidate = function(evt) {
         ws.send(JSON.stringify({
-                'type': 'candidate',
-                'signal': evt.candidate,
-                'guestID': myID,
-                'hostID': sessionID}));
+                type: 'candidate',
+                signal: evt.candidate,
+                guestID: myID,
+                hostID: sessionID}));
     };
 
     // once remote stream arrives, show it in the remote video element
@@ -74,17 +75,17 @@ function connectToSession() {
     };
 
     var constraints = {
-        "offerToReceiveAudio": true,
-        "offerToReceiveVideo": true
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true
     };
     peerConnection.createOffer(function(offer) {
         peerConnection.setLocalDescription(offer, function() {
             ws.send(JSON.stringify({
-                        'type': 'offer',
-                        'signal': offer,
-                        'name': name,
-                        'guestID': myID,
-                        'hostID': sessionID}));
+                        type: 'offer',
+                        signal: offer,
+                        name: name,
+                        guestID: myID,
+                        hostID: sessionID}));
         }, peerConnectionError);
     }, peerConnectionError, constraints);
 }

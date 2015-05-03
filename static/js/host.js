@@ -40,10 +40,10 @@ ws.onmessage = function (evt) {
                 pc.setLocalDescription(answer, function() {
                     // send the answer to the remote connection
                     ws.send(JSON.stringify({
-                        'type': 'answer',
-                        'signal': answer,
-                        'guestID': msg.guestID,
-                        'hostID': myID}));
+                        type: 'answer',
+                        signal: answer,
+                        guestID: msg.guestID,
+                        hostID: myID}));
                 }, function() {
                     console.log("setLocalDescription Failed");
                 })
@@ -56,10 +56,10 @@ ws.onmessage = function (evt) {
         pc.addStream(sharedStream);
         pc.onicecandidate = function (evt) {
             ws.send(JSON.stringify({
-                'type': 'candidate',
-                'signal': evt.candidate,
-                'guestID': msg.guestID,
-                'hostID': myID}));
+                type: 'candidate',
+                signal: evt.candidate,
+                guestID: msg.guestID,
+                hostID: myID}));
         };
         // store the new peerConnection in our list of guests
         guests[msg.guestID] = {'id': msg.guestID, 'pc': pc};
@@ -132,10 +132,10 @@ function startSession() {
     openSharedStream(function(stream) {
         sharedStream = stream;
         ws.send(JSON.stringify({
-            "type": "announce",
-            "hostID": myID,
-            "name": name,
-            "sessionName": sessionName
+            type: "announce",
+            hostID: myID,
+            name: name,
+            sessionName: sessionName
         }))
     });
 }

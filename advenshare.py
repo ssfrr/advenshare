@@ -33,8 +33,8 @@ class Host(object):
         self.ws.send(msg)
 
     def handle_msg(self, msg):
-        msg = json.loads(msg)
-        self.guests[msg['guestID']].send(msg)
+        data = json.loads(msg)
+        self.guests[data['guestID']].send(msg)
 
     @classmethod
     def from_json(cls, msg, ws):
