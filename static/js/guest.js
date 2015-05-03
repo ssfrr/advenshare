@@ -102,3 +102,7 @@ function disconnectFromSession() {
     disconnect.style.display = "none";
     connect.style.display = "block";
 }
+
+function mouseMove(ev) {
+    console.log("Mouse at " + ev.clientX + ", " + ev.clientY);
+}
