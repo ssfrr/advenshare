@@ -59,11 +59,15 @@ function connectToSession() {
 
     // send any ice candidates to the other peer
     peerConnection.onicecandidate = function(evt) {
-        ws.send(JSON.stringify({
-                type: 'candidate',
-                signal: evt.candidate,
-                guestID: myID,
-                hostID: sessionID}));
+        // seems that it sends a candidate of null when it's done, so we either
+        // need to catch it here or in the receiver
+        if(evt.candidate) {
+            ws.send(JSON.stringify({
+                    type: 'candidate',
+                    signal: evt.candidate,
+                    guestID: myID,
+                    hostID: sessionID}));
+        }
     };
 
     // once remote stream arrives, show it in the remote video element

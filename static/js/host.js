@@ -54,12 +54,16 @@ ws.onmessage = function (evt) {
             console.log("setRemoteDescription Failed");
         });
         pc.addStream(sharedStream);
-        pc.onicecandidate = function (evt) {
-            ws.send(JSON.stringify({
-                type: 'candidate',
-                signal: evt.candidate,
-                guestID: msg.guestID,
-                hostID: myID}));
+        pc.onicecandidate = function(evt) {
+            // seems that it sends a candidate of null when it's done, so we either
+            // need to catch it here or in the receiver
+            if(evt.candidate) {
+                ws.send(JSON.stringify({
+                    type: 'candidate',
+                    signal: evt.candidate,
+                    guestID: msg.guestID,
+                    hostID: myID}));
+            }
         };
         // store the new peerConnection in our list of guests
         guests[msg.guestID] = {'id': msg.guestID, 'pc': pc};
