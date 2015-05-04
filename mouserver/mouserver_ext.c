@@ -220,7 +220,7 @@ static PyObject *WindowObject_mouse_down(WindowObject *self, PyObject *args,
     static char *kwlist[] = {"button", NULL};
     if(!PyArg_ParseTupleAndKeywords(args, kwds, "|i", kwlist, &button))
         return NULL;
-    xdo_mouse_down(xd, self->window, button);
+    xdo_mouse_down(xd, CURRENTWINDOW, button);
     return Py_None;
 }
 
@@ -230,7 +230,7 @@ static PyObject *WindowObject_mouse_up(WindowObject *self, PyObject *args,
     static char *kwlist[] = {"button", NULL};
     if(!PyArg_ParseTupleAndKeywords(args, kwds, "|i", kwlist, &button))
         return NULL;
-    xdo_mouse_up(xd, self->window, button);
+    xdo_mouse_up(xd, CURRENTWINDOW, button);
     return Py_None;
 }
 
@@ -240,7 +240,7 @@ static PyObject *WindowObject_click(WindowObject *self, PyObject *args,
     static char *kwlist[] = {"button", NULL};
     if(!PyArg_ParseTupleAndKeywords(args, kwds, "|i", kwlist, &button))
         return NULL;
-    xdo_click_window(xd, self->window, button);
+    xdo_click_window(xd, CURRENTWINDOW, button);
     return Py_None;
 }
 
