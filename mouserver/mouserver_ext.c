@@ -27,6 +27,8 @@ static PyObject *WindowObject_mouse_up(WindowObject *self, PyObject *args,
                                          PyObject *kwds);
 static PyObject *WindowObject_click(WindowObject *self, PyObject *args, 
                                          PyObject *kwds);
+static PyObject *WindowObject_mouse_move_ratio(WindowObject *self, PyObject *args,
+                                               PyObject *kwds);
 
 static PyMethodDef WindowObject_methods[] = {
     {"get_size", (PyCFunction)WindowObject_get_size, METH_NOARGS,
@@ -35,6 +37,9 @@ static PyMethodDef WindowObject_methods[] = {
         "Returns the name/title of the window, if applicable."},
     {"mouse_move", (PyCFunction)WindowObject_mouse_move, METH_KEYWORDS,
         "Moves the mouse cursor relative to the window."},
+    {"mouse_move_ratio", (PyCFunction)WindowObject_mouse_move_ratio, METH_KEYWORDS,
+        "Moves the mouse cursor relative to the window, where 0,0 is the top "
+        "left corner and 1.0, 1.0 is the bottom right corner."},
     {"mouse_down", (PyCFunction)WindowObject_mouse_down, METH_KEYWORDS,
         "Sends a mouse down event for the specified button."},
     {"mouse_up", (PyCFunction)WindowObject_mouse_up, METH_KEYWORDS,
@@ -185,6 +190,27 @@ static PyObject *WindowObject_mouse_move(WindowObject *self, PyObject *args,
     if(x > w) x = w;
     if(y > h) y = h;
     xdo_move_mouse_relative_to_window(xd, self->window, x, y);
+    return Py_None;
+}
+
+static PyObject *WindowObject_mouse_move_ratio(WindowObject *self, PyObject *args,
+                                               PyObject *kwds) {
+    float x = 0., y = 0.;
+    unsigned int w, h;
+    static char *kwlist[] = {"x", "y", NULL};
+    if(!PyArg_ParseTupleAndKeywords(args, kwds, "|ff", kwlist, &x, &y))
+        return NULL;
+    int ret = xdo_get_window_size(xd, self->window, &w, &h);
+    if(ret != 0) {
+        PyErr_SetString(MouserverError, "Failed to get window bounds");
+        return NULL;
+    }
+    if(x > 1.0) x = 1.0;
+    if(y > 1.0) y = 1.0;
+    if(x < 0.0) x = 0.0;
+    if(y < 0.0) y = 0.0;
+    xdo_move_mouse_relative_to_window(xd, self->window, 
+        (unsigned int)roundf(x * w), (unsigned int)roundf(y * h));
     return Py_None;
 }
 

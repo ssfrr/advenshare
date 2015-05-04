@@ -25,6 +25,7 @@ class Mouserver:
         self.method_table = {}
         self.register(
             self.mouse_move,
+            self.mouse_move_ratio,
             self.mouse_down,
             self.mouse_up,
             self.mouse_click,
@@ -75,6 +76,12 @@ class Mouserver:
         y = int(y)
         self.log.debug("mouse_move (%d, %d)", x, y)
         self.window.mouse_move(x, y)
+    
+    def mouse_move_ratio(self, x, y):
+        x = float(x)
+        y = float(y)
+        self.log.debug("mouse_move_ratio (%f, %f)", x, y)
+        self.window.mouse_move_ratio(x, y)
 
     def mouse_down(self, button=1):
         button = int(button)
