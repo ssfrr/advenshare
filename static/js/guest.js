@@ -14,8 +14,8 @@ var message = document.getElementById("message");
 var guest_stream = document.getElementById("guest_stream");
 var video = document.createElement("video");
 var myID = randomstring(20);
-video.setAttribute("width", 1024);
-video.setAttribute("height", 768);
+//video.setAttribute("width", 1024);
+//video.setAttribute("height", 768);
 
 var peerConnection = null;
 
@@ -72,10 +72,56 @@ function connectToSession() {
 
     // once remote stream arrives, show it in the remote video element
     peerConnection.onaddstream = function(obj) {
-        console.log("New Peer Stream");
+        str = obj.stream;
+        console.log("New Peer Stream (" + str.videoHeight + ", " + str.videoWidth + ")");
         guest_video.appendChild(video);
-        video.mozSrcObject = obj.stream;
+        video.mozSrcObject = str;
         video.play();
+
+        var lastMouseMove = 0;
+        video.onmousemove = function(ev) {
+            now = Date.now();
+            // only send mouse moves every 20ms
+            if(now - lastMouseMove > 20) {
+                lastMouseMove = now;
+                ws.send(JSON.stringify({
+                    hostID: sessionID,
+                    guestID: myID,
+                    type: 'mousemoveratio',
+                    x: (ev.pageX - this.offsetLeft) / this.clientWidth,
+                    y: (ev.pageY - this.offsetTop) / this.clientHeight
+                }));
+            }
+        };
+        video.onmousedown = function(ev) {
+            ws.send(JSON.stringify({
+                hostID: sessionID,
+                guestID: myID,
+                type: 'mousedown',
+                button: ev.button,
+                x: (ev.pageX - this.offsetLeft) / this.clientWidth,
+                y: (ev.pageY - this.offsetTop) / this.clientHeight
+            }));
+        }
+        video.onmouseup = function(ev) {
+            ws.send(JSON.stringify({
+                hostID: sessionID,
+                guestID: myID,
+                type: 'mouseup',
+                button: ev.button,
+                x: (ev.pageX - this.offsetLeft) / this.clientWidth,
+                y: (ev.pageY - this.offsetTop) / this.clientHeight
+            }));
+        }
+        video.onmouseout = function(ev) {
+            ws.send(JSON.stringify({
+                hostID: sessionID,
+                guestID: myID,
+                type: 'mouseout',
+            }));
+        }
+        video.onkeydown = function(ev) {};
+        video.onkeyup = function(ev) {};
     };
 
     var constraints = {
@@ -101,8 +147,4 @@ function disconnectFromSession() {
 
     disconnect.style.display = "none";
     connect.style.display = "block";
-}
-
-function mouseMove(ev) {
-    console.log("Mouse at " + ev.clientX + ", " + ev.clientY);
 }

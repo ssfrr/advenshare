@@ -16,11 +16,10 @@ var stop = document.getElementById("stop_button");
 var message = document.getElementById("message");
 var host_capture = document.getElementById("host_capture");
 var video = document.createElement("video");
-//var myID = randomstring(20);
-// for now just use a fixed ID so we're easy to connect to
-var myID = "abcd";
-video.setAttribute("width", 1024);
-video.setAttribute("height", 768);
+var myID = randomstring(20);
+var sessionID = randomstring(20);
+//video.setAttribute("width", 1024);
+//video.setAttribute("height", 768);
 
 var guests = {};
 
@@ -136,10 +135,11 @@ function startSession() {
     openSharedStream(function(stream) {
         sharedStream = stream;
         ws.send(JSON.stringify({
-            type: "announce",
-            hostID: myID,
-            name: name,
+            type: "createSession",
+            sessionID: myID,
             sessionName: sessionName
+            srcID: myID,
+            name: name,
         }))
     });
 }
