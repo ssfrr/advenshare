@@ -36,16 +36,19 @@ class Session(object):
         del self.guests[user.id]
         user.session = None
 
-    def handle_msg(self, msg, user):
+    def handle_msg(self, msg, src_user):
         destID = msg['destID']
         if destID == '*':
+            host.send(msg)
             for guest in self.guests.itervalues():
                 guest.send(msg)
+        elif destID == host.id:
+            host.send(msg)
         else:
             try:
                 self.guests[destID].send(msg)
             except KeyError:
-                logger.warning("Unknown Destination: %s" % msg)
+                user_error(src_user.ws, "Unknown Destination: %s" % msg)
 
     def close(self):
         # it's important here that values() makes a copy because we're about to
@@ -111,8 +114,6 @@ def host_view():
     return send_from_directory(HTML_DIR, 'host.html')
 
 
-# TODO: currently doesn't handle the case where the host disconnects while the
-# guest is still connected
 @sockets.route('/ws/user')
 def user_ws_view(ws):
     user = None
