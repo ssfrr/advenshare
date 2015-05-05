@@ -1,15 +1,15 @@
 HTML_DIR = ''
-from flask import Flask, send_from_directory # , jsonify, request
+from flask import Flask, send_from_directory # , request
 from flask_sockets import Sockets
 import json
 import logging
-from coloredlogs import ColoredStreamHandler
+import coloredlogs
+
 
 app = Flask(__name__)
 sockets = Sockets(app)
+coloredlogs.install(logging.INFO)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.addHandler(ColoredStreamHandler())
 
 # list of sessions is keyed on their IDs
 sessions = {}
@@ -17,6 +17,7 @@ sessions = {}
 # define message type strings
 ANNOUNCE = 'announce'
 JOIN_SESSION = 'joinSession'
+JOIN_SESSION_RESPONSE = 'joinSessionResponse'
 CREATE_SESSION = 'createSession'
 GET_SESSION_INFO = 'getSessionInfo'
 
@@ -42,8 +43,8 @@ class Session(object):
             host.send(msg)
             for guest in self.guests.itervalues():
                 guest.send(msg)
-        elif destID == host.id:
-            host.send(msg)
+        elif destID == self.host.id:
+            self.host.send(msg)
         else:
             try:
                 self.guests[destID].send(msg)
@@ -62,7 +63,7 @@ class Session(object):
             'id': self.id,
             'name': self.name,
             'host': self.host.to_dict(),
-            'guests': [guest.to_dict() for guest in self.guests]
+            'guests': [guest.to_dict() for guest in self.guests.values()]
         }
 
     def to_json(self):
@@ -88,6 +89,9 @@ class User(object):
             return True
 
     def disconnect(self):
+        if self.session is None:
+            return
+
         if self.is_host():
             self.session.close()
         else:
@@ -104,14 +108,8 @@ class User(object):
 
 
 @app.route('/')
-@app.route('/guest')
-def guest_view():
-    return send_from_directory(HTML_DIR, 'guest.html')
-
-
-@app.route('/host')
-def host_view():
-    return send_from_directory(HTML_DIR, 'host.html')
+def index_view():
+    return send_from_directory(HTML_DIR, 'index.html')
 
 
 @sockets.route('/ws/user')
@@ -124,12 +122,12 @@ def user_ws_view(ws):
         try:
             msg = ws.receive()
         except:
-            logger.info("Guest Disconnected")
+            logger.info("User Disconnected")
             if user is not None:
                 user.disconnect()
             return
         if msg is None:
-            logger.info("Got None from Guest, Disconnected")
+            logger.info("Got None from User, Disconnected")
             if user is not None:
                 user.disconnect()
             return
@@ -138,11 +136,11 @@ def user_ws_view(ws):
         except:
             user_error(ws, 'Invalid JSON: "%s"' % msg)
             continue
-        logging.info('Received Guest Msg: %s' % msg)
+        logging.info('Received WS Msg: %s' % msg)
 
         validate_msg(ws, msg)
-        if user is None
-            if mag['type'] == ANNOUNCE:
+        if user is None:
+            if msg['type'] == ANNOUNCE:
                 user = User(ws, msg['srcID'], msg['userName'])
             else:
                 user_error(ws, 'First message must be of type "%s"' % ANNOUNCE)
@@ -168,14 +166,34 @@ def handle_user_msg(msg, user):
         session = Session(msg['sessionID'], msg['sessionName'], user)
         sessions[session.id] = session
         logger.info('Session "%s" created by %s. ID: %s' % (
-            session.name, session.host.name, session.id)
+            session.name, session.host.name, session.id))
+        return
+
+    if msg['type'] == JOIN_SESSION:
+        try:
+            session = sessions[msg['sessionID']]
+        except KeyError:
+            user.send(json.dumps({
+                'type': JOIN_SESSION_RESPONSE,
+                'status': "Invalid sessionID: %s. Current Sessions are: %s" % (msg['sessionID'], sessions)
+            }))
+            logger.warn("Invalid sessionID: %s" % msg['sessionID'])
+            return
+        session.add_guest(user)
+        resp = {
+            'type': JOIN_SESSION_RESPONSE,
+            'status': 'success',
+        }
+        resp.update(session.to_dict())
+        user.send(json.dumps(resp))
+        logger.info('User %s joined session %s' % (user.name, session.name))
         return
 
     # all other messages get dispatched to their session
     try:
         sessions[msg['sessionID']].handle_msg(msg, user)
     except KeyError:
-        user_error(user.ws, "Invalid sessionID: %s" % msg['sessionID'])
+        user_error(user.ws, "Invalid sessionID: %s. Current Sessions are: %s" % (msg['sessionID'], sessions))
 
 
 def user_error(ws, msg):

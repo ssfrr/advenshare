@@ -17,7 +17,7 @@ function randomstring(len){
 }
 
 function WSConn() {
-    self = this;
+    var self = this;
     self.sessionID = "";
     self.id = randomstring(20);
     self.ws = new WebSocket("wss://" + location.host + "/ws/user");
@@ -26,7 +26,7 @@ function WSConn() {
     };
 
     self.ws.onmessage = function(msg) {
-        console.log("Received WS Msg: " + msg);
+        console.log("Received WS Msg: " + msg.data);
         msgData = JSON.parse(msg.data);
         if(msgData['type'] == 'joinSessionResponse' && self.onJoinSessionResponse) {
             self.onJoinSessionResponse(
@@ -57,8 +57,9 @@ function WSConn() {
     };
 
     self.sendMsg = function(msg) {
-        console.log("Sending WS Msg: " + msg);
-        self.ws.send(JSON.stringify(msg));
+        msg_str = JSON.stringify(msg);
+        console.log("Sending WS Msg: " + msg_str);
+        self.ws.send(msg_str);
     };
 
     self.sendAnnounce = function(name) {
@@ -71,7 +72,6 @@ function WSConn() {
 
     self.sendCreateSession = function(sessionName, sessionID) {
         self.sessionID = sessionID;
-        self.name = userName;
         self.sendMsg({
             type: 'createSession',
             sessionName: sessionName,
@@ -132,7 +132,7 @@ function WSConn() {
 }
 
 function RTCConn() {
-    self = this;
+    var self = this;
     self.pc = new mozRTCPeerConnection();
     self.createOffer = function(constraints, success, failure) {
         self.pc.createOffer(function(offer) {
@@ -150,8 +150,8 @@ function RTCConn() {
                     console.log("Created WebRTC Answer");
                     success(answer);
                 }, failure)
-            } failure)
-        } failure);
+            }, failure)
+        }, failure);
     };
 
     self.handleAnswer = function(answer) {
@@ -174,13 +174,22 @@ function RTCConn() {
             self.onICECandidate(evt.candidate);
         }
     };
+
+    self.pc.onaddstream = function(obj) {
+        console.log("RTC Stream Added");
+        if(self.onAddStream) {
+            self.onAddStream(obj.stream);
+        }
+    }
+
+    self.onAddStream = function(stream) {};
 }
 
 function AdvenShareApp() {
-    self = this;
-    self.ws = new WSConn();
+    var self = this;
     // rtc is a dict of RTCConn objects, keyed on the peer ID
-    self.rtc = {}
+    self.rtc = {};
+    self.ws = new WSConn();
     self.videoStream = null;
     self.startForm = document.getElementById("start-form");
     self.stopForm = document.getElementById("stop-form");
@@ -259,7 +268,7 @@ function AdvenShareApp() {
         self.rtc[userID].handleAnswer(answer);
     }
 
-    self.setMessage(msg) = function() {
+    self.setMessage = function(msg) {
         self.message.innerHTML = "<p>" + msg + "</p>";
     }
 
@@ -296,5 +305,4 @@ function AdvenShareApp() {
     };
 }
 
-app = new AdvenShareApp();
-app.start();
+var app = new AdvenShareApp();
