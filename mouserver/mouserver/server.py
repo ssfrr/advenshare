@@ -6,15 +6,20 @@ import sys
 import ssl
 from getopt import gnu_getopt, GetoptError
 from mouserver_ext import grab_window, Window
+import random
+import string
+
 
 class Mouserver:
-    
+
     def __init__(self, ws_url, session, window):
         self.ws_url = ws_url
         self.session = session
         self.window = window
         self.log = logging.getLogger('mouserver')
         self.ws_log = logging.getLogger('websocket')
+        self.uid = ''.join(random.choice(string.letters) for i in xrange(20))
+        self.name = 'MouServer'
 
         self.log.info("Websocket URL: %s", self.ws_url)
         self.log.info("Session ID: %s", self.session)
@@ -23,20 +28,18 @@ class Mouserver:
         self.log.info("Window: %s (%dx%d)", window_name, w, h)
 
         self.method_table = {}
-        self.register(
-            self.mouse_move,
-            self.mouse_move_ratio,
-            self.mouse_down,
-            self.mouse_up,
-            self.mouse_click,
-        )
+        self.register('mouseMove', self.mouse_move)
+        self.register('mouseDown', self.mouse_down)
+        self.register('mouseUp', self.mouse_up)
 
-        self.wsapp = websocket.WebSocketApp(ws_url,
+        self.wsapp = websocket.WebSocketApp(
+            ws_url,
             on_message=self.on_message,
             on_error=self.on_error,
             on_close=self.on_close,
             on_open=self.on_open)
 
+    def run_forever(self):
         self.wsapp.run_forever(sslopt={'cert_reqs': ssl.CERT_NONE})
 
     def on_message(self, ws, message):
@@ -45,15 +48,15 @@ class Mouserver:
         except ValueError:
             self.log.warning("Received non-JSON data")
             return
-        if not msg.has_key("cmd"):
+        if 'type' not in msg:
             self.log.warning("Received data with no command")
             return
-        cmd = msg.pop("cmd")
-        method = self.method_table.get(cmd, None)
+        msg_type = msg['type']
+        method = self.method_table.get(msg_type, None)
         if method is not None:
-            method(**msg)
+            method(msg)
         else:
-            self.log.warning("Received unknown command: %s", cmd)
+            self.log.warning("Received unknown msg type: %s", msg_type)
 
     def on_error(self, ws, error):
         self.ws_log.error(error)
@@ -61,49 +64,54 @@ class Mouserver:
     def on_close(self, ws):
         self.ws_log.error("Connection closed, exiting")
         sys.exit(0)
-    
+
     def on_open(self, ws):
         self.ws_log.info("Connection established")
-        self.ws_log.info("Registering session: %s", self.session)
-        ws.send(json.dumps({'cmd': 'register_session', 'session_id': self.session}))
+        self.ws_log.info("Joining session: %s", self.session)
+        ws.send(json.dumps({
+            'type': 'announce',
+            'srcID': self.uid,
+            'userName': self.name,
+            'activeMouseOnly': True
+        }))
+        ws.send(json.dumps({
+            'type': 'joinSession',
+            'srcID': self.uid,
+            'sessionID': self.session
+        }))
 
-    def register(self, *args):
-        for method in args:
-            self.method_table[method.__name__] = method
+    def register(self, msg_type, method):
+        self.method_table[msg_type] = method
 
-    def mouse_move(self, x, y):
-        x = int(x)
-        y = int(y)
-        self.log.debug("mouse_move (%d, %d)", x, y)
-        self.window.mouse_move(x, y)
-    
-    def mouse_move_ratio(self, x, y):
-        x = float(x)
-        y = float(y)
-        self.log.debug("mouse_move_ratio (%f, %f)", x, y)
+    def mouse_move(self, msg):
+        x = float(msg['x'])
+        y = float(msg['y'])
+        self.log.debug("mouse_move (%f, %f)", x, y)
         self.window.mouse_move_ratio(x, y)
 
-    def mouse_down(self, button=1):
-        button = int(button)
-        self.log.debug("mouse_down (%d)", button)
+    def mouse_down(self, msg):
+        x = float(msg['x'])
+        y = float(msg['y'])
+        button = int(msg['button'])
+        self.log.debug("mouse_down (%f, %f, %d)", (x, y, button))
+        self.window.mouse_move_ratio(x, y)
         self.window.mouse_down(button)
-    
-    def mouse_up(self, button=1):
-        button = int(button)
-        self.log.debug("mouse_up (%d)", button)
+
+    def mouse_up(self, msg):
+        x = float(msg['x'])
+        y = float(msg['y'])
+        button = int(msg['button'])
+        self.log.debug("mouse_up (%f, %f, %d)", (x, y, button))
+        self.window.mouse_move_ratio(x, y)
         self.window.mouse_up(button)
 
-    def mouse_click(self, button=1):
-        button = int(button)
-        self.log.debug("mouse_click (%d)", button)
-        self.window.click(button)
 
 def print_usage():
     print "usage: %s -u <websocket_url> -s <session_id> [-w <window_id>]" % sys.argv[0]
     print ""
     print "     --url, -u <websocket_url>"
-    print "         specifies the websocket URL to which the program should connect"
-    print "         in order to receive user interaction events (required)"
+    print "         specifies the websocket URL to which the program should"
+    print "         connect to receive user interaction events (required)"
     print "     --session, -s <session_id>"
     print "         specifies the string that uniquely identifies this session"
     print "         (required)"
@@ -117,8 +125,8 @@ def print_usage():
     print "     --help, -h"
     print "         displays this usage information."
 
-def main():
 
+def main():
     loglevel = logging.INFO
     url = None
     session = None
@@ -169,7 +177,7 @@ def main():
 
     coloredlogs.install(level=loglevel)
     server = Mouserver(url, session, window)
+    server.run_forever()
 
 if __name__ == '__main__':
     main()
-        
