@@ -39,8 +39,8 @@ function WSConn() {
                     msgData['host'],
                     msgData['guests']);
         }
-        else if(msgData['type'] == 'userJoinedSession' && self.onUserJoinedSession) {
-            self.onUserJoinedSession(msgData['id'], msgData['name']);
+        else if(msgData['type'] == 'hello' && self.onHello) {
+            self.onHello(msgData['srcID'], msgData['userName']);
         }
         else if(msgData['type'] == 'offer' && self.onOffer) {
             self.onOffer(msgData['srcID'], msgData['signal']);
@@ -88,6 +88,7 @@ function WSConn() {
     };
 
     self.sendAnnounce = function(name) {
+        self.name = name;
         self.sendMsg({
             type: 'announce',
             srcID: self.id,
@@ -189,9 +190,23 @@ function WSConn() {
         });
     };
 
+    self.sendHello = function() {
+        if(!self.name) {
+            console.log("Tried to send Hello before the initial announcement");
+            return;
+        }
+        self.sendMsg({
+            type: 'hello',
+            sessionID: self.sessionID,
+            srcID: self.id,
+            userName: self.name,
+            destID: '*'
+        });
+    }
+
 
     self.onJoinSessionResponse = function(status, sessionID, sessionName, host, guests) {};
-    self.onUserJoinedSession = function(userID, userName) {};
+    self.onHello = function(userID, userName) {};
     self.onOffer = function(userID, offer) {};
     self.onCandidate = function(userID, candidate) {};
     self.onAnswer = function(userID, answer) {};
@@ -265,14 +280,15 @@ function RTCConn() {
 function Peer(id, name, cursorParent) {
     var self = this;
     self.id = id;
+    self.name = name;
     self.rtc = new RTCConn();
-    cursor = document.createElement("img");
+    var cursor = document.createElement("img");
     cursor.setAttribute('src', '/static/img/crosshair.cur');
     cursor.classList.add("cursor");
     cursor.classList.add("hidden");
     cursorParent.appendChild(cursor);
 
-    cursorLabel = document.createElement("span");
+    var cursorLabel = document.createElement("span");
     cursorLabel.innerHTML = "<p>" + name + "</p>";
     cursorLabel.classList.add("cursor-label");
     cursorLabel.classList.add("hidden");
@@ -336,8 +352,12 @@ function AdvenShareApp() {
         var sessionID = self.sessionIDField.value;
         self.ws.sendAnnounce(userName);
         self.ws.sendJoinSession(sessionID);
+
         self.ws.onJoinSessionResponse = function(status, sessionID, sessionName, host, guests) {
             if(status == "success") {
+                // introduce ourself to the others in the session. It's polite.
+                // (and required)
+                self.ws.sendHello();
                 var constraints = {
                     offerToReceiveAudio: true,
                     offerToReceiveVideo: true
@@ -351,6 +371,13 @@ function AdvenShareApp() {
                 peer.rtc.createOffer(constraints, function(offer) {
                     self.ws.sendOffer(host.id, offer);
                 }, self.errHandler);
+                // TODO: this is where we open the audio connections to all the
+                // current guests
+                for(var i = 0; i < guests.length; i++) {
+                    var guest = guests[i];
+                    var peer = new Peer(guest.id, guest.name, self.videoWrapperDiv);
+                    self.peers[guest.id] = peer;
+                }
             }
             else {
                 self.setMessage("Join Failed: " + status);
@@ -369,8 +396,11 @@ function AdvenShareApp() {
     };
 
     self.ws.onOffer = function(userID, offer) {
-        var peer = new Peer(userID, "TESTING", self.videoWrapperDiv);
-        self.peers[userID] = peer;
+        var peer = self.peers[userID];
+        if(!peer) {
+            self.errHandler("Received offer from unknown peer. They should say hello");
+            return;
+        }
         peer.rtc.addStream(self.videoStream);
         peer.rtc.createAnswer(offer, function(answer) {
             self.ws.sendAnswer(userID, answer);
@@ -402,6 +432,12 @@ function AdvenShareApp() {
         self.peers[userID].mouseOut();
     };
 
+    self.ws.onHello = function(userID, userName) {
+        console.log("User " + userName + "(id " + userID + ") said hello");
+        var peer = new Peer(userID, userName, self.videoWrapperDiv);
+        self.peers[userID] = peer;
+    };
+
     self.setMessage = function(msg) {
         self.message.innerHTML = "<p>" + msg + "</p>";
     };
@@ -415,12 +451,16 @@ function AdvenShareApp() {
         self.stopForm.classList.remove('hidden');
         self.startForm.classList.add('hidden');
         self.videoWrapperDiv.classList.add('hidden');
+        self.video.onmousemove = null;
+        self.video.onmouseout = null;
     };
 
     self.enableStreamView = function(stream) {
         self.stopForm.classList.add('hidden');
         self.startForm.classList.remove('hidden');
         self.videoWrapperDiv.classList.remove('hidden');
+        self.video.onmousemove = self.videoMouseMoveHandler;
+        self.video.onmouseout = self.videoMouseOutHandler;
         //self.videoWrapperDiv.appendChild(self.video);
         self.video.mozSrcObject = stream;
         self.video.play();
@@ -446,7 +486,8 @@ function AdvenShareApp() {
         }
     };
 
-    self.video.onmousemove = function(ev) {
+    // don't assing this directly to the video, we'll do that when it's enabled
+    self.videoMouseMoveHandler = function(ev) {
         var now = Date.now();
         // only send mouse moves every 20ms
         if(now - self.lastMouseMove > 20) {
@@ -461,6 +502,12 @@ function AdvenShareApp() {
             self.ws.sendMouseMove(x, y);
         }
     };
+
+    // don't assing this directly to the video, we'll do that when it's enabled
+    self.videoMouseOutHandler = function(ev) {
+        self.ws.sendMouseOut();
+    }
+
     self.video.onmousedown = function(ev) {
         self.ws.sendMouseDown(
                 (ev.pageX - this.offsetLeft) / this.clientWidth,
@@ -472,9 +519,6 @@ function AdvenShareApp() {
                 (ev.pageX - this.offsetLeft) / this.clientWidth,
                 (ev.pageY - this.offsetTop) / this.clientHeight,
                 ev.button);
-    }
-    self.video.onmouseout = function(ev) {
-        self.ws.sendMouseOut();
     }
     self.video.onkeydown = function(ev) {};
     self.video.onkeyup = function(ev) {};
