@@ -48,6 +48,26 @@ function WSConn() {
         else if(msgData['type'] == 'candidate' && self.onCandidate) {
             self.onCandidate(msgData['srcID'], msgData['signal']);
         }
+        else if(msgData['type'] == 'mouseMove' && self.onMouseMove) {
+            self.onMouseMove(msgData['srcID'],
+                    msgData['x'],
+                    msgData['y']);
+        }
+        else if(msgData['type'] == 'mouseDown' && self.onMouseDown) {
+            self.onMouseDown(msgData['srcID'],
+                    msgData['x'],
+                    msgData['y'],
+                    msgData['button']);
+        }
+        else if(msgData['type'] == 'mouseUp' && self.onMouseUp) {
+            self.onMouseUp(msgData['srcID'],
+                    msgData['x'],
+                    msgData['y'],
+                    msgData['button']);
+        }
+        else if(msgData['type'] == 'mouseOut' && self.onMouseOut) {
+            self.onMouseOut(msgData['srcID']);
+        }
         else if(msgData['type'] == 'error' && self.onError) {
             self.onError(msgData['message']);
         }
@@ -119,15 +139,60 @@ function WSConn() {
         });
     };
 
+    self.sendMouseMove = function(x, y) {
+        self.sendMsg({
+            type: 'mouseMove',
+            sessionID: self.sessionID,
+            srcID: self.id,
+            destID: '*',
+            x: x,
+            y: y
+        });
+    };
+
+    self.sendMouseDown = function(x, y, button) {
+        self.sendMsg({
+            type: 'mouseDown',
+            sessionID: self.sessionID,
+            srcID: self.id,
+            destID: '*',
+            x: x,
+            y: y,
+            button: button
+        });
+    };
+
+    self.sendMouseUp = function(x, y, button) {
+        self.sendMsg({
+            type: 'mouseUp',
+            sessionID: self.sessionID,
+            srcID: self.id,
+            destID: '*',
+            x: x,
+            y: y,
+            button: button
+        });
+    };
+
+    self.sendMouseOut = function() {
+        self.sendMsg({
+            type: 'mouseOut',
+            sessionID: self.sessionID,
+            srcID: self.id,
+            destID: '*'
+        });
+    };
+
 
     self.onJoinSessionResponse = function(status, sessionID, sessionName, host, guests) {};
     self.onUserJoinedSession = function(userID, userName) {};
     self.onOffer = function(userID, offer) {};
     self.onCandidate = function(userID, candidate) {};
     self.onAnswer = function(userID, answer) {};
-    self.onMouseMove = function(userID, mouseX, mouseY) {};
-    self.onMouseDown = function(userID, mouseX, mouseY, button) {};
-    self.onMouseUp = function(userID, mouseX, mouseY, button) {};
+    self.onMouseMove = function(userID, x, y) {};
+    self.onMouseDown = function(userID, x, y, button) {};
+    self.onMouseUp = function(userID, x, y, button) {};
+    self.onMouseOut = function(userID) {};
     self.onError = function(message) {console.log("WS Error: " + message);};
 }
 
@@ -204,6 +269,7 @@ function AdvenShareApp() {
     self.nameField = document.getElementById("name-field");
     self.sessionNameField = document.getElementById("session-name-field");
     self.sessionIDField = document.getElementById("session-id-field");
+    self.lastMouseMove = 0;
 
     // called from the button click
     self.createSession = function() {
@@ -330,6 +396,34 @@ function AdvenShareApp() {
             failure(e);
         }
     };
+
+    self.video.onmousemove = function(ev) {
+        now = Date.now();
+        // only send mouse moves every 20ms
+        if(now - self.lastMouseMove > 20) {
+            self.lastMouseMove = now;
+            self.ws.sendMouseMove(
+                    (ev.pageX - this.offsetLeft) / this.clientWidth,
+                    (ev.pageY - this.offsetTop) / this.clientHeight);
+        }
+    };
+    self.video.onmousedown = function(ev) {
+        self.ws.sendMouseDown(
+                (ev.pageX - this.offsetLeft) / this.clientWidth,
+                (ev.pageY - this.offsetTop) / this.clientHeight,
+                ev.button);
+    }
+    self.video.onmouseup = function(ev) {
+        self.ws.sendMouseUp(
+                (ev.pageX - this.offsetLeft) / this.clientWidth,
+                (ev.pageY - this.offsetTop) / this.clientHeight,
+                ev.button);
+    }
+    self.video.onmouseout = function(ev) {
+        self.ws.sendMouseOut();
+    }
+    self.video.onkeydown = function(ev) {};
+    self.video.onkeyup = function(ev) {};
 }
 
 var app = new AdvenShareApp();

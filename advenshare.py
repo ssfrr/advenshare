@@ -20,6 +20,11 @@ JOIN_SESSION = 'joinSession'
 JOIN_SESSION_RESPONSE = 'joinSessionResponse'
 CREATE_SESSION = 'createSession'
 GET_SESSION_INFO = 'getSessionInfo'
+MOUSE_DOWN = 'mouseDown'
+MOUSE_UP = 'mouseUp'
+MOUSE_MOVE = 'mouseMove'
+MOUSE_OUT = 'mouseOut'
+MOUSE_MSGS = [MOUSE_MOVE, MOUSE_DOWN, MOUSE_UP, MOUSE_OUT]
 
 
 class Session(object):
@@ -28,6 +33,7 @@ class Session(object):
         self.name = name
         self.host = host
         self.guests = {}
+        self.active_user = host
 
     def add_guest(self, user):
         self.guests[user.id] = user
@@ -38,17 +44,20 @@ class Session(object):
         user.session = None
 
     def handle_msg(self, msg, src_user):
-        msg_str = json.dumps(msg)
         destID = msg['destID']
+        if msg['type'] == MOUSE_DOWN:
+            self.active_user = src_user
         if destID == '*':
-            self.host.send(msg_str)
+            if src_user != self.host:
+                self.host.send(msg)
             for guest in self.guests.itervalues():
-                guest.send(msg_str)
+                if guest != src_user:
+                    guest.send(msg)
         elif destID == self.host.id:
-            self.host.send(msg_str)
+            self.host.send(msg)
         else:
             try:
-                self.guests[destID].send(msg_str)
+                self.guests[destID].send(msg)
             except KeyError:
                 user_error(src_user.ws, "Unknown Destination: %s" % msg)
 
@@ -72,14 +81,19 @@ class Session(object):
 
 
 class User(object):
-    def __init__(self, ws, id, name):
+    def __init__(self, ws, id, name, active_mouse_only=False):
         self.id = id
         self.ws = ws
         self.name = name
         self.session = None
+        self.active_mouse_only = active_mouse_only
 
     def send(self, msg):
-        self.ws.send(msg)
+        if msg['type'] in MOUSE_MSGS:
+            if self.active_mouse_only and self.session.active_user != self:
+                return
+        msg_str = json.dumps(msg)
+        self.ws.send(msg_str)
 
     def is_host(self):
         if self.session is None:
@@ -179,10 +193,10 @@ def handle_user_msg(msg, user):
         try:
             session = sessions[msg['sessionID']]
         except KeyError:
-            user.send(json.dumps({
+            user.send({
                 'type': JOIN_SESSION_RESPONSE,
                 'status': "Invalid sessionID: %s" % msg['sessionID']
-            }))
+            })
             logger.warn("Invalid sessionID: %s" % msg['sessionID'])
             return
         session.add_guest(user)
@@ -191,7 +205,7 @@ def handle_user_msg(msg, user):
             'status': 'success',
         }
         resp.update(session.to_dict())
-        user.send(json.dumps(resp))
+        user.send(resp)
         logger.info('User %s joined session %s' % (user.name, session.name))
         return
 

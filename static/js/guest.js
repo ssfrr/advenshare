@@ -81,8 +81,8 @@ function connectToSession() {
         var lastMouseMove = 0;
         video.onmousemove = function(ev) {
             now = Date.now();
-            // only send mouse moves every 20ms
-            if(now - lastMouseMove > 20) {
+            // only send mouse moves every 50ms
+            if(now - lastMouseMove > 50) {
                 lastMouseMove = now;
                 ws.send(JSON.stringify({
                     hostID: sessionID,
