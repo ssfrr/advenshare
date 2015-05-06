@@ -159,6 +159,10 @@ function RTCConn() {
         self.pc.setRemoteDescription(new mozRTCSessionDescription(answer));
     };
 
+    self.addStream = function(stream) {
+        self.pc.addStream(stream);
+    };
+
     self.addICECandidate = function(candidate) {
         console.log("Adding Remote ICE Candidate");
         self.pc.addIceCandidate(new mozRTCIceCandidate(candidate));
@@ -236,6 +240,9 @@ function AdvenShareApp() {
                 var rtc = new RTCConn();
                 self.rtc[host.id] = rtc;
                 rtc.onAddStream = self.setVideoStream;
+                rtc.onICECandidate = function(candidate) {
+                    self.ws.sendCandidate(host.id, candidate);
+                };
                 rtc.createOffer(constraints, function(offer) {
                     self.ws.sendOffer(host.id, offer);
                 }, self.errHandler);
@@ -254,33 +261,47 @@ function AdvenShareApp() {
         }
         self.videoStream = stream;
         self.enableStreamView(stream);
-    }
+    };
 
     self.ws.onOffer = function(userID, offer) {
         var rtc = new RTCConn();
         self.rtc[userID] = rtc;
+        rtc.addStream(self.videoStream);
         rtc.createAnswer(offer, function(answer) {
             self.ws.sendAnswer(userID, answer);
         }, self.errHandler);
+        rtc.onICECandidate = function(candidate) {
+            self.ws.sendCandidate(userID, candidate);
+        };
     };
 
     self.ws.onAnswer = function(userID, answer) {
         self.rtc[userID].handleAnswer(answer);
-    }
+    };
+
+    self.ws.onCandidate = function(userID, candidate) {
+        if(candidate) {
+            // seems that a null candidate is generated at the end
+            self.rtc[userID].addICECandidate(candidate);
+        }
+        else {
+            console.log("Received null ICE candidate");
+        }
+    };
 
     self.setMessage = function(msg) {
         self.message.innerHTML = "<p>" + msg + "</p>";
-    }
+    };
 
     // called from the button click
     self.stopSession = function() {
-        self.stream.stop();
+        //self.videoStream.stop();
         self.video.mozSrcObject = null;
-        self.screenMonitor.removeChild(video);
+        self.screenMonitor.removeChild(self.video);
 
         self.stopForm.style.display = "none";
         self.startForm.style.display = "block";
-    }
+    };
 
     self.enableStreamView = function(stream) {
         self.stopForm.style.display = "block";
@@ -288,11 +309,17 @@ function AdvenShareApp() {
         self.screenMonitor.appendChild(self.video);
         self.video.mozSrcObject = stream;
         self.video.play();
-    }
+    };
 
     self.errHandler = function(err) {
         console.log("App Error: " + err);
-    }
+        if(err == "PERMISSION_DENIED") {
+            alert("Permission Denied:\nMake sure to enable " +
+                    "`media.getusermedia.screensharing.enabled` " +
+                    "in `about:config`, and add this domain to " +
+                    "media.getusermedia.screensharing.allowed_domains");
+        }
+    };
 
     self.openLocalStream = function(constraints, success, failure) {
         // success is called with the stream as it's only argument

@@ -38,16 +38,17 @@ class Session(object):
         user.session = None
 
     def handle_msg(self, msg, src_user):
+        msg_str = json.dumps(msg)
         destID = msg['destID']
         if destID == '*':
-            host.send(msg)
+            self.host.send(msg_str)
             for guest in self.guests.itervalues():
-                guest.send(msg)
+                guest.send(msg_str)
         elif destID == self.host.id:
-            self.host.send(msg)
+            self.host.send(msg_str)
         else:
             try:
-                self.guests[destID].send(msg)
+                self.guests[destID].send(msg_str)
             except KeyError:
                 user_error(src_user.ws, "Unknown Destination: %s" % msg)
 
@@ -138,12 +139,17 @@ def user_ws_view(ws):
             continue
         logging.info('Received WS Msg: %s' % msg)
 
-        validate_msg(ws, msg)
+        if not msg_is_valid(ws, msg):
+            continue
+
         if user is None:
             if msg['type'] == ANNOUNCE:
                 user = User(ws, msg['srcID'], msg['userName'])
             else:
                 user_error(ws, 'First message must be of type "%s"' % ANNOUNCE)
+            continue
+        elif msg['type'] == ANNOUNCE:
+            logger.warning("Double-announce. Ignored.")
             continue
         elif msg['srcID'] != user.id:
             user_error(
@@ -175,7 +181,7 @@ def handle_user_msg(msg, user):
         except KeyError:
             user.send(json.dumps({
                 'type': JOIN_SESSION_RESPONSE,
-                'status': "Invalid sessionID: %s. Current Sessions are: %s" % (msg['sessionID'], sessions)
+                'status': "Invalid sessionID: %s" % msg['sessionID']
             }))
             logger.warn("Invalid sessionID: %s" % msg['sessionID'])
             return
@@ -193,7 +199,7 @@ def handle_user_msg(msg, user):
     try:
         sessions[msg['sessionID']].handle_msg(msg, user)
     except KeyError:
-        user_error(user.ws, "Invalid sessionID: %s. Current Sessions are: %s" % (msg['sessionID'], sessions))
+        user_error(user.ws, "Invalid sessionID: %s" % msg['sessionID'])
 
 
 def user_error(ws, msg):
@@ -213,12 +219,14 @@ required_msg_fields = {
 }
 
 
-def validate_msg(ws, msg):
+def msg_is_valid(ws, msg):
     if 'type' not in msg:
         user_error(ws, 'No "type" field in msg: "%s"' % msg)
-        return
+        return False
     extra_fields = required_msg_fields.get(msg['type'], [])
     fields = common_required_msg_fields + extra_fields
     for field in fields:
         if field not in msg:
             user_error(ws, 'No "%s" field in msg: "%s"' % (field, msg))
+            return False
+    return True
