@@ -42,6 +42,9 @@ function WSConn() {
         else if(msgData['type'] == 'hello' && self.onHello) {
             self.onHello(msgData['srcID'], msgData['userName']);
         }
+        else if(msgData['type'] == 'userLeftSession' && self.onUserLeftSession) {
+            self.onUserLeftSession(msgData['id']);
+        }
         else if(msgData['type'] == 'offer' && self.onOffer) {
             self.onOffer(msgData['srcID'], msgData['signal']);
         }
@@ -207,6 +210,7 @@ function WSConn() {
 
     self.onJoinSessionResponse = function(status, sessionID, sessionName, host, guests) {};
     self.onHello = function(userID, userName) {};
+    self.onUserLeftSession = function(userID) {};
     self.onOffer = function(userID, offer) {};
     self.onCandidate = function(userID, candidate) {};
     self.onAnswer = function(userID, answer) {};
@@ -437,6 +441,12 @@ function AdvenShareApp() {
         var peer = new Peer(userID, userName, self.videoWrapperDiv);
         self.peers[userID] = peer;
     };
+
+    self.ws.onUserLeftSession = function(userID) {
+        var peer = self.peers[userID];
+        console.log("User " + peer.name + "(id " + peer.id + ") left session");
+        delete self.peers[userID];
+    }
 
     self.setMessage = function(msg) {
         self.message.innerHTML = "<p>" + msg + "</p>";

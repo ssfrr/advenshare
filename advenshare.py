@@ -19,6 +19,7 @@ ANNOUNCE = 'announce'
 JOIN_SESSION = 'joinSession'
 JOIN_SESSION_RESPONSE = 'joinSessionResponse'
 CREATE_SESSION = 'createSession'
+USER_LEFT_SESSION = 'userLeftSession'
 GET_SESSION_INFO = 'getSessionInfo'
 MOUSE_DOWN = 'mouseDown'
 MOUSE_UP = 'mouseUp'
@@ -45,6 +46,13 @@ class Session(object):
             self.active_user = self.host
         del self.guests[user.id]
         user.session = None
+        msg = {
+            'type': USER_LEFT_SESSION,
+            'id': user.id
+        }
+        self.host.send(msg)
+        for guest in self.guests.values():
+            guest.send(msg)
 
     def handle_msg(self, msg, src_user):
         destID = msg['destID']
