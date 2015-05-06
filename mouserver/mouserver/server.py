@@ -92,7 +92,9 @@ class Mouserver:
     def mouse_down(self, msg):
         x = float(msg['x'])
         y = float(msg['y'])
-        button = int(msg['button'])
+        # javascript (and the websockets) use 0, 1, 2 for the mouse buttons,
+        # but libxdo uses 1, 2, 3
+        button = int(msg['button']) + 1
         self.log.debug("mouse_down (%f, %f, %d)", (x, y, button))
         self.window.mouse_move_ratio(x, y)
         self.window.mouse_down(button)
@@ -100,7 +102,9 @@ class Mouserver:
     def mouse_up(self, msg):
         x = float(msg['x'])
         y = float(msg['y'])
-        button = int(msg['button'])
+        # javascript (and the websockets) use 0, 1, 2 for the mouse buttons,
+        # but libxdo uses 1, 2, 3
+        button = int(msg['button']) + 1
         self.log.debug("mouse_up (%f, %f, %d)", (x, y, button))
         self.window.mouse_move_ratio(x, y)
         self.window.mouse_up(button)

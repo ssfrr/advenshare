@@ -18,6 +18,7 @@ function randomstring(len){
 
 function WSConn() {
     var self = this;
+    self.verbose = false;
     self.sessionID = "";
     self.id = randomstring(20);
     self.ws = new WebSocket("wss://" + location.host + "/ws/user");
@@ -26,7 +27,9 @@ function WSConn() {
     };
 
     self.ws.onmessage = function(msg) {
-        console.log("Received WS Msg: " + msg.data);
+        if(self.verbose) {
+            console.log("Received WS Msg: " + msg.data);
+        }
         msgData = JSON.parse(msg.data);
         if(msgData['type'] == 'joinSessionResponse' && self.onJoinSessionResponse) {
             self.onJoinSessionResponse(
@@ -78,7 +81,9 @@ function WSConn() {
 
     self.sendMsg = function(msg) {
         msg_str = JSON.stringify(msg);
-        console.log("Sending WS Msg: " + msg_str);
+        if(self.verbose) {
+            console.log("Sending WS Msg: " + msg_str);
+        }
         self.ws.send(msg_str);
     };
 
@@ -399,13 +404,18 @@ function AdvenShareApp() {
     };
 
     self.video.onmousemove = function(ev) {
-        now = Date.now();
+        var now = Date.now();
         // only send mouse moves every 20ms
         if(now - self.lastMouseMove > 20) {
+            var x = (ev.pageX - this.offsetLeft) / this.clientWidth;
+            var y = (ev.pageY - this.offsetTop) / this.clientHeight;
+            // Seems that if the curser moves too fast sometimes we get mouse moves
+            // outside the div
+            if(x < 0 || x > 1 || y < 0 || y > 1) {
+                return;
+            }
             self.lastMouseMove = now;
-            self.ws.sendMouseMove(
-                    (ev.pageX - this.offsetLeft) / this.clientWidth,
-                    (ev.pageY - this.offsetTop) / this.clientHeight);
+            self.ws.sendMouseMove(x, y);
         }
     };
     self.video.onmousedown = function(ev) {

@@ -41,6 +41,8 @@ class Session(object):
         user.session = self
 
     def remove_guest(self, user):
+        if user == self.active_user:
+            self.active_user = self.host
         del self.guests[user.id]
         user.session = None
 
