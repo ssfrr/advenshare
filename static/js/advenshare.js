@@ -86,7 +86,8 @@ function WSConn() {
         self.sendMsg({
             type: 'announce',
             srcID: self.id,
-            userName: name
+            userName: name,
+            activeMouseOnly: false
         });
     };
 

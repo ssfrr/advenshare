@@ -34,6 +34,7 @@ class Session(object):
         self.host = host
         self.guests = {}
         self.active_user = host
+        host.session = self
 
     def add_guest(self, user):
         self.guests[user.id] = user
@@ -47,6 +48,8 @@ class Session(object):
         destID = msg['destID']
         if msg['type'] == MOUSE_DOWN:
             self.active_user = src_user
+            logger.info("Setting active user to %s for session %s" %
+                        (src_user.name, self.name))
         if destID == '*':
             if src_user != self.host:
                 self.host.send(msg)
@@ -89,9 +92,12 @@ class User(object):
         self.active_mouse_only = active_mouse_only
 
     def send(self, msg):
-        if msg['type'] in MOUSE_MSGS:
-            if self.active_mouse_only and self.session.active_user != self:
-                return
+        if msg['type'] in MOUSE_MSGS and \
+            self.active_mouse_only and \
+                self.session is not None and \
+                    msg['srcID'] != self.session.active_user.id:
+            # this isn't from the active user, so don't send it down
+            return
         msg_str = json.dumps(msg)
         self.ws.send(msg_str)
 
@@ -158,7 +164,11 @@ def user_ws_view(ws):
 
         if user is None:
             if msg['type'] == ANNOUNCE:
-                user = User(ws, msg['srcID'], msg['userName'])
+                active_mouse_only = False
+                if 'activeMouseOnly' in msg:
+                    active_mouse_only = msg['activeMouseOnly']
+                user = User(ws, msg['srcID'], msg['userName'],
+                            active_mouse_only)
             else:
                 user_error(ws, 'First message must be of type "%s"' % ANNOUNCE)
             continue
