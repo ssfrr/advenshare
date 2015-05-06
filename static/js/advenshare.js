@@ -20,7 +20,7 @@ function WSConn() {
     var self = this;
     self.verbose = false;
     self.sessionID = "";
-    self.id = randomstring(20);
+    self.id = randomstring(5);
     self.ws = new WebSocket("wss://" + location.host + "/ws/user");
     self.ws.onopen = function(event) {
         console.log("Websocket Opened");
@@ -342,7 +342,7 @@ function AdvenShareApp() {
         self.openLocalStream(constraints, function(stream) {
             var userName = self.nameField.value;
             var sessionName = self.sessionNameField.value;
-            var sessionID = randomstring(20);
+            var sessionID = randomstring(5);
             self.setVideoStream(stream);
             self.message.innerHTML = "<p>Session Started. ID: " + sessionID + "</p>";
             self.ws.sendAnnounce(userName);
