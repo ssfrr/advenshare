@@ -16,12 +16,14 @@
         <input value="Session ID" id="session-id-field" type="text">
         <input value="Join Session" onclick="app.joinSession();" type="button">
     </div>
-    <div id="stop-form" style="display:none">
+    <div id="stop-form" class="hidden">
         <input value="Stop Session" onclick="app.stopSession();" type="button">
     </div>
 </div>
 <div id="message"></div>
-<div id="screen-monitor"></div>
+<div id="video-wrapper" class="hidden">
+    <video id="screen-video"></video>
+</div>
 <script src="static/js/advenshare.js"></script>
 </body>
 </html>

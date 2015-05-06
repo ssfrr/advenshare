@@ -30,7 +30,7 @@ function WSConn() {
         if(self.verbose) {
             console.log("Received WS Msg: " + msg.data);
         }
-        msgData = JSON.parse(msg.data);
+        var msgData = JSON.parse(msg.data);
         if(msgData['type'] == 'joinSessionResponse' && self.onJoinSessionResponse) {
             self.onJoinSessionResponse(
                     msgData['status'],
@@ -260,17 +260,50 @@ function RTCConn() {
     self.onAddStream = function(stream) {};
 }
 
+// TODO: probably should wrap some of the RTC interactions instead of users
+// just reaching inside to the internal rtc object.
+function Peer(id, name, cursorParent) {
+    var self = this;
+    self.id = id;
+    self.rtc = new RTCConn();
+    cursor = document.createElement("img");
+    cursor.setAttribute('src', '/static/img/crosshair.cur');
+    cursor.classList.add("cursor");
+    cursor.classList.add("hidden");
+    cursorParent.appendChild(cursor);
+
+    cursorLabel = document.createElement("span");
+    cursorLabel.innerHTML = "<p>" + name + "</p>";
+    cursorLabel.classList.add("cursor-label");
+    cursorLabel.classList.add("hidden");
+    cursorParent.appendChild(cursorLabel);
+
+    self.mouseMove = function(x, y) {
+        cursor.style.left = (x * cursorParent.clientWidth - cursor.width / 2) + 'px';
+        cursor.style.top = (y * cursorParent.clientHeight - cursor.height / 2) + 'px';
+        cursor.classList.remove("hidden");
+        cursorLabel.style.left = (x * cursorParent.clientWidth) + 'px';
+        cursorLabel.style.top = (y * cursorParent.clientHeight) + 'px';
+        cursorLabel.classList.remove("hidden");
+    };
+
+    self.mouseOut = function() {
+        cursor.classList.add("hidden");
+        cursorLabel.classList.add("hidden");
+    }
+}
+
 function AdvenShareApp() {
     var self = this;
-    // rtc is a dict of RTCConn objects, keyed on the peer ID
-    self.rtc = {};
+    // peers is a dict of Peer objects, keyed on the peer ID
+    self.peers = {};
     self.ws = new WSConn();
     self.videoStream = null;
     self.startForm = document.getElementById("start-form");
     self.stopForm = document.getElementById("stop-form");
     self.message = document.getElementById("message");
-    self.screenMonitor = document.getElementById("screen-monitor");
-    self.video = document.createElement("video");
+    self.videoWrapperDiv = document.getElementById("video-wrapper");
+    self.video = document.getElementById("screen-video");
     // form elements
     self.nameField = document.getElementById("name-field");
     self.sessionNameField = document.getElementById("session-name-field");
@@ -309,13 +342,13 @@ function AdvenShareApp() {
                     offerToReceiveAudio: true,
                     offerToReceiveVideo: true
                 };
-                var rtc = new RTCConn();
-                self.rtc[host.id] = rtc;
-                rtc.onAddStream = self.setVideoStream;
-                rtc.onICECandidate = function(candidate) {
+                var peer = new Peer(host.id, host.name, self.videoWrapperDiv);
+                self.peers[host.id] = peer;
+                peer.rtc.onAddStream = self.setVideoStream;
+                peer.rtc.onICECandidate = function(candidate) {
                     self.ws.sendCandidate(host.id, candidate);
                 };
-                rtc.createOffer(constraints, function(offer) {
+                peer.rtc.createOffer(constraints, function(offer) {
                     self.ws.sendOffer(host.id, offer);
                 }, self.errHandler);
             }
@@ -336,29 +369,37 @@ function AdvenShareApp() {
     };
 
     self.ws.onOffer = function(userID, offer) {
-        var rtc = new RTCConn();
-        self.rtc[userID] = rtc;
-        rtc.addStream(self.videoStream);
-        rtc.createAnswer(offer, function(answer) {
+        var peer = new Peer(userID, "TESTING", self.videoWrapperDiv);
+        self.peers[userID] = peer;
+        peer.rtc.addStream(self.videoStream);
+        peer.rtc.createAnswer(offer, function(answer) {
             self.ws.sendAnswer(userID, answer);
         }, self.errHandler);
-        rtc.onICECandidate = function(candidate) {
+        peer.rtc.onICECandidate = function(candidate) {
             self.ws.sendCandidate(userID, candidate);
         };
     };
 
     self.ws.onAnswer = function(userID, answer) {
-        self.rtc[userID].handleAnswer(answer);
+        self.peers[userID].rtc.handleAnswer(answer);
     };
 
     self.ws.onCandidate = function(userID, candidate) {
         if(candidate) {
             // seems that a null candidate is generated at the end
-            self.rtc[userID].addICECandidate(candidate);
+            self.peers[userID].rtc.addICECandidate(candidate);
         }
         else {
             console.log("Received null ICE candidate");
         }
+    };
+
+    self.ws.onMouseMove = function(userID, x, y) {
+        self.peers[userID].mouseMove(x, y);
+    };
+
+    self.ws.onMouseOut = function(userID) {
+        self.peers[userID].mouseOut();
     };
 
     self.setMessage = function(msg) {
@@ -369,16 +410,18 @@ function AdvenShareApp() {
     self.stopSession = function() {
         //self.videoStream.stop();
         self.video.mozSrcObject = null;
-        self.screenMonitor.removeChild(self.video);
+        //self.videoWrapperDiv.removeChild(self.video);
 
-        self.stopForm.style.display = "none";
-        self.startForm.style.display = "block";
+        self.stopForm.classList.remove('hidden');
+        self.startForm.classList.add('hidden');
+        self.videoWrapperDiv.classList.add('hidden');
     };
 
     self.enableStreamView = function(stream) {
-        self.stopForm.style.display = "block";
-        self.startForm.style.display = "none";
-        self.screenMonitor.appendChild(self.video);
+        self.stopForm.classList.add('hidden');
+        self.startForm.classList.remove('hidden');
+        self.videoWrapperDiv.classList.remove('hidden');
+        //self.videoWrapperDiv.appendChild(self.video);
         self.video.mozSrcObject = stream;
         self.video.play();
     };
@@ -407,8 +450,8 @@ function AdvenShareApp() {
         var now = Date.now();
         // only send mouse moves every 20ms
         if(now - self.lastMouseMove > 20) {
-            var x = (ev.pageX - this.offsetLeft) / this.clientWidth;
-            var y = (ev.pageY - this.offsetTop) / this.clientHeight;
+            var x = (ev.layerX - this.offsetLeft) / this.clientWidth;
+            var y = (ev.layerY - this.offsetTop) / this.clientHeight;
             // Seems that if the curser moves too fast sometimes we get mouse moves
             // outside the div
             if(x < 0 || x > 1 || y < 0 || y > 1) {
