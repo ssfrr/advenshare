@@ -109,7 +109,11 @@ class User(object):
             # this isn't from the active user, so don't send it down
             return
         msg_str = json.dumps(msg)
-        self.ws.send(msg_str)
+        try:
+            self.ws.send(msg_str)
+        except WebSocketError:
+            if self.session is not None:
+                self.session.remove_guest(self)
 
     def is_host(self):
         if self.session is None:
