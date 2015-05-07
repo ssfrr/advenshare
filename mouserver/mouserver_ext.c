@@ -190,6 +190,7 @@ static PyObject *WindowObject_mouse_move(WindowObject *self, PyObject *args,
     if(x > w) x = w;
     if(y > h) y = h;
     xdo_move_mouse_relative_to_window(xd, self->window, x, y);
+    Py_INCREF(Py_None);
     return Py_None;
 }
 
