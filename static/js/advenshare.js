@@ -501,8 +501,9 @@ function AdvenShareApp() {
         var now = Date.now();
         // only send mouse moves every 20ms
         if(now - self.lastMouseMove > 20) {
-            var x = (ev.layerX - this.offsetLeft) / this.clientWidth;
-            var y = (ev.layerY - this.offsetTop) / this.clientHeight;
+            var ratios = self.getMouseRatios(ev, this);
+            var x = ratios.x;
+            var y = ratios.y;
             // Seems that if the curser moves too fast sometimes we get mouse moves
             // outside the div
             if(x < 0 || x > 1 || y < 0 || y > 1) {
@@ -513,22 +514,25 @@ function AdvenShareApp() {
         }
     };
 
+    self.getMouseRatios = function(ev, parentDiv) {
+        return {
+            x: (ev.layerX - parentDiv.offsetLeft) / parentDiv.clientWidth,
+            y: (ev.layerY - parentDiv.offsetTop) / parentDiv.clientHeight
+        };
+    }
+
     // don't assing this directly to the video, we'll do that when it's enabled
     self.videoMouseOutHandler = function(ev) {
         self.ws.sendMouseOut();
     }
 
     self.video.onmousedown = function(ev) {
-        self.ws.sendMouseDown(
-                (ev.pageX - this.offsetLeft) / this.clientWidth,
-                (ev.pageY - this.offsetTop) / this.clientHeight,
-                ev.button);
+        var ratios = self.getMouseRatios(ev, this);
+        self.ws.sendMouseDown(ratios.x, ratios.y, ev.button);
     }
     self.video.onmouseup = function(ev) {
-        self.ws.sendMouseUp(
-                (ev.pageX - this.offsetLeft) / this.clientWidth,
-                (ev.pageY - this.offsetTop) / this.clientHeight,
-                ev.button);
+        var ratios = self.getMouseRatios(ev, this);
+        self.ws.sendMouseUp(ratios.x, ratios.y, ev.button);
     }
     self.video.onkeydown = function(ev) {};
     self.video.onkeyup = function(ev) {};
