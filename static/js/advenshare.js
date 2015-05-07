@@ -283,7 +283,8 @@ function RTCConn() {
             processed.push(line);
             var res = opusRegex.exec(line);
             if(res) {
-                var fmtpLine = findFmtp(lines, i, res[1]);
+                var rtpID = res[1];
+                var fmtpLine = findFmtp(lines, i, rtpID);
                 if(fmtpLine >= 0) {
                     // there's already a fmtp line, so we'll add our settings.
                     // We don't need to push it to the processed array because
@@ -293,7 +294,7 @@ function RTCConn() {
                 else {
                     // we don't already have a fmtp line, so we push one to the
                     // processed lines
-                    processed.push("a=fmtp:" + settings);
+                    processed.push("a=fmtp:" + rtpID + " " + settings);
                 }
             }
         }
