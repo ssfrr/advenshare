@@ -212,6 +212,7 @@ static PyObject *WindowObject_mouse_move_ratio(WindowObject *self, PyObject *arg
     if(y < 0.0) y = 0.0;
     xdo_move_mouse_relative_to_window(xd, self->window, 
         (unsigned int)roundf(x * w), (unsigned int)roundf(y * h));
+    Py_INCREF(Py_None);
     return Py_None;
 }
 
@@ -221,7 +222,8 @@ static PyObject *WindowObject_mouse_down(WindowObject *self, PyObject *args,
     static char *kwlist[] = {"button", NULL};
     if(!PyArg_ParseTupleAndKeywords(args, kwds, "|i", kwlist, &button))
         return NULL;
-    xdo_mouse_down(xd, CURRENTWINDOW, button);
+    xdo_mouswe_down(xd, CURRENTWINDOW, button);
+    Py_INCREF(Py_None);
     return Py_None;
 }
 
@@ -232,6 +234,7 @@ static PyObject *WindowObject_mouse_up(WindowObject *self, PyObject *args,
     if(!PyArg_ParseTupleAndKeywords(args, kwds, "|i", kwlist, &button))
         return NULL;
     xdo_mouse_up(xd, CURRENTWINDOW, button);
+    Py_INCREF(Py_None);
     return Py_None;
 }
 
@@ -242,6 +245,7 @@ static PyObject *WindowObject_click(WindowObject *self, PyObject *args,
     if(!PyArg_ParseTupleAndKeywords(args, kwds, "|i", kwlist, &button))
         return NULL;
     xdo_click_window(xd, CURRENTWINDOW, button);
+    Py_INCREF(Py_None);
     return Py_None;
 }
 
