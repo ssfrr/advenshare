@@ -223,7 +223,7 @@ function WSConn() {
 
 function RTCConn() {
     var self = this;
-    self.pc = new mozRTCPeerConnection();
+    self.pc = new RTCPeerConnection();
     self.createOffer = function(constraints, success, failure) {
         self.pc.createOffer(function(offer) {
             offer.sdp = self.processSDP(offer.sdp);
@@ -235,7 +235,7 @@ function RTCConn() {
     };
 
     self.createAnswer = function(offer, success, failure) {
-        self.pc.setRemoteDescription(new mozRTCSessionDescription(offer), function() {
+        self.pc.setRemoteDescription(new RTCSessionDescription(offer), function() {
             self.pc.createAnswer(function(answer) {
                 answer.sdp = self.processSDP(answer.sdp);
                 self.pc.setLocalDescription(answer, function() {
@@ -248,7 +248,7 @@ function RTCConn() {
 
     self.handleAnswer = function(answer) {
         console.log("Handling Remote WebRTC Answer");
-        self.pc.setRemoteDescription(new mozRTCSessionDescription(answer));
+        self.pc.setRemoteDescription(new RTCSessionDescription(answer));
     };
 
     self.addStream = function(stream) {
@@ -257,7 +257,7 @@ function RTCConn() {
 
     self.addICECandidate = function(candidate) {
         console.log("Adding Remote ICE Candidate");
-        self.pc.addIceCandidate(new mozRTCIceCandidate(candidate));
+        self.pc.addIceCandidate(new RTCIceCandidate(candidate));
     };
 
     self.processSDP = function(sdp) {
@@ -499,7 +499,7 @@ function AdvenShareApp() {
     // called from the button click
     self.stopSession = function() {
         //self.videoStream.stop();
-        self.video.mozSrcObject = null;
+        attachMediaStream(self.video, null);
         //self.videoWrapperDiv.removeChild(self.video);
 
         self.stopForm.classList.remove('hidden');
@@ -516,7 +516,7 @@ function AdvenShareApp() {
         self.video.onmousemove = self.videoMouseMoveHandler;
         self.video.onmouseout = self.videoMouseOutHandler;
         //self.videoWrapperDiv.appendChild(self.video);
-        self.video.mozSrcObject = stream;
+        attachMediaStream(self.video, stream);
         self.video.play();
     };
 
@@ -534,7 +534,7 @@ function AdvenShareApp() {
         // success is called with the stream as it's only argument
         // failure is called with a single error argument. Not sure what type.
         try {
-            window.navigator.mozGetUserMedia(constraints, success, failure);
+            getUserMedia(constraints, success, failure);
         } catch(e) {
             failure(e);
         }
