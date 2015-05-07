@@ -226,6 +226,7 @@ function RTCConn() {
     self.pc = new mozRTCPeerConnection();
     self.createOffer = function(constraints, success, failure) {
         self.pc.createOffer(function(offer) {
+            offer.sdp = self.processSDP(offer.sdp);
             self.pc.setLocalDescription(offer, function() {
                 console.log("Created WebRTC Offer");
                 success(offer);
@@ -236,6 +237,7 @@ function RTCConn() {
     self.createAnswer = function(offer, success, failure) {
         self.pc.setRemoteDescription(new mozRTCSessionDescription(offer), function() {
             self.pc.createAnswer(function(answer) {
+                answer.sdp = self.processSDP(answer.sdp);
                 self.pc.setLocalDescription(answer, function() {
                     console.log("Created WebRTC Answer");
                     success(answer);
@@ -257,6 +259,47 @@ function RTCConn() {
         console.log("Adding Remote ICE Candidate");
         self.pc.addIceCandidate(new mozRTCIceCandidate(candidate));
     };
+
+    self.processSDP = function(sdp) {
+        var settings = "maxaveragebitrate=200000; stereo=1";
+        var opusRegex = /^a=rtpmap:([0-9]+) opus\/48000\/2$/;
+        var lines = sdp.split('\r\n');
+        var processed = [];
+
+        var findFmtp = function(lines, starting, id) {
+            // looks for an a=fmtp line that matches the given format ID
+            for(var i = starting; i < lines.length && lines[i][0] != 'm'; i++) {
+                prefix = "a=fmtp:" + id;
+                if(lines[i].slice(0, prefix.length) == prefix) {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        for(var i = 0; i < lines.length; i++) {
+            var line = lines[i];
+            processed.push(line);
+            var res = opusRegex.exec(line);
+            if(res) {
+                var fmtpLine = findFmtp(lines, i, res[1]);
+                if(fmtpLine >= 0) {
+                    // there's already a fmtp line, so we'll add our settings.
+                    // We don't need to push it to the processed array because
+                    // we'll get there in the loop anyways.
+                    lines[fmtpLine] = lines[fmtpLine] + "; " + settings;
+                }
+                else {
+                    // we don't already have a fmtp line, so we push one to the
+                    // processed lines
+                    processed.push("a=fmtp:" + settings);
+                }
+            }
+        }
+
+        return processed.join('\r\n');
+    }
 
     // the onICECandidate callback should send the given candidate to the peer
     // on the other side of the connection. On the far side the code should
