@@ -261,7 +261,12 @@ function RTCConn() {
     };
 
     self.processSDP = function(sdp) {
-        var settings = "maxaveragebitrate=200000; stereo=1";
+        var settings =
+            "maxaveragebitrate=200000;" +
+            "stereo=1;" +
+            "sprop-stereo=1;" +
+            "maxplaybackrate=48000;" +
+            "sprop-maxcapturerate=48000";
         var opusRegex = /^a=rtpmap:([0-9]+) opus\/48000\/2$/;
         var lines = sdp.split('\r\n');
         var processed = [];
@@ -376,13 +381,39 @@ function AdvenShareApp() {
 
     // called from the button click
     self.createSession = function() {
-        constraints = {
-            video: {
-                mozMediaSource: "window",
-                mediaSource: "window",
-            },
-            audio: true
-        };
+        if(webrtcDetectedBrowser == 'firefox') {
+            constraints = {
+                video: {
+                    mozMediaSource: "window",
+                    mediaSource: "window",
+                },
+                audio: {
+                    echoCancellation: false
+                }
+            };
+        }
+        else if(webrtcDetectedBrowser == 'chrome') {
+            constraints = {
+                video: {
+                    googMediaSource: "window",
+                    mozMediaSource: "window",
+                    mediaSource: "window",
+                },
+                audio: {
+                    mandatory: {
+                        echoCancellation: false,
+                        googAutoGainControl: false,
+                        googAutoGainControl2: false,
+                        googEchoCancellation: false,
+                        googEchoCancellation2: false,
+                        googNoiseSuppression: false,
+                        googNoiseSuppression2: false,
+                        googHighpassFilter: false,
+                        googTypingNoiseDetection: false
+                    }
+                }
+            }
+        }
         self.openLocalStream(constraints, function(stream) {
             var userName = self.nameField.value;
             var sessionName = self.sessionNameField.value;
