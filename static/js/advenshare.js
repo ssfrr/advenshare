@@ -394,38 +394,44 @@ function AdvenShareApp() {
                     echoCancellation: false
                 }
             };
+            self.openLocalStream(self.mediaConstraints, self.localStreamOpened, self.errHandler);
         }
         else if(webrtcDetectedBrowser == 'chrome') {
-            self.mediaConstraints = {
-                video: {
-                    googMediaSource: "window",
-                    mozMediaSource: "window",
-                    mediaSource: "window",
-                },
-                audio: {
-                    mandatory: {
-                        echoCancellation: false,
-                        googAutoGainControl: false,
-                        googAutoGainControl2: false,
-                        googEchoCancellation: false,
-                        googEchoCancellation2: false,
-                        googNoiseSuppression: false,
-                        googNoiseSuppression2: false,
-                        googHighpassFilter: false,
-                        googTypingNoiseDetection: false
+            getScreenId(function(err, sourceId, constraints) {
+                self.mediaConstraints = {
+                    video: {
+                        mandatory: {
+                            chromeMediaSource: "desktop",
+                            chromeMediaSourceId: sourceId
+                        }
+                    },
+                    audio: {
+                        mandatory: {
+                            echoCancellation: false,
+                            googAutoGainControl: false,
+                            googAutoGainControl2: false,
+                            googEchoCancellation: false,
+                            googEchoCancellation2: false,
+                            googNoiseSuppression: false,
+                            googNoiseSuppression2: false,
+                            googHighpassFilter: false,
+                            googTypingNoiseDetection: false
+                        }
                     }
-                }
-            };
+                };
+                self.openLocalStream(constraints, self.localStreamOpened, self.errHandler);
+            });
         }
-        self.openLocalStream(self.mediaConstraints, function(stream) {
-            var userName = self.nameField.value;
-            var sessionName = self.sessionNameField.value;
-            var sessionID = randomstring(5);
-            self.setVideoStream(stream);
-            self.message.innerHTML = "<p>Session Started. ID: " + sessionID + "</p>";
-            self.ws.sendAnnounce(userName);
-            self.ws.sendCreateSession(sessionName, sessionID);
-        }, self.errHandler);
+    }
+
+    self.localStreamOpened = function(stream) {
+        var userName = self.nameField.value;
+        var sessionName = self.sessionNameField.value;
+        var sessionID = randomstring(5);
+        self.setVideoStream(stream);
+        self.message.innerHTML = "<p>Session Started. ID: " + sessionID + "</p>";
+        self.ws.sendAnnounce(userName);
+        self.ws.sendCreateSession(sessionName, sessionID);
     }
 
     // called from the button click
