@@ -378,11 +378,14 @@ function AdvenShareApp() {
     self.sessionNameField = document.getElementById("session-name-field");
     self.sessionIDField = document.getElementById("session-id-field");
     self.lastMouseMove = 0;
+    self.isHosting = false;
+    self.mediaConstraints = null;
 
     // called from the button click
     self.createSession = function() {
+        self.isHosting = true;
         if(webrtcDetectedBrowser == 'firefox') {
-            constraints = {
+            self.mediaConstraints = {
                 video: {
                     mozMediaSource: "window",
                     mediaSource: "window",
@@ -393,7 +396,7 @@ function AdvenShareApp() {
             };
         }
         else if(webrtcDetectedBrowser == 'chrome') {
-            constraints = {
+            self.mediaConstraints = {
                 video: {
                     googMediaSource: "window",
                     mozMediaSource: "window",
@@ -412,9 +415,9 @@ function AdvenShareApp() {
                         googTypingNoiseDetection: false
                     }
                 }
-            }
+            };
         }
-        self.openLocalStream(constraints, function(stream) {
+        self.openLocalStream(self.mediaConstraints, function(stream) {
             var userName = self.nameField.value;
             var sessionName = self.sessionNameField.value;
             var sessionID = randomstring(5);
@@ -437,19 +440,12 @@ function AdvenShareApp() {
                 // introduce ourself to the others in the session. It's polite.
                 // (and required)
                 self.ws.sendHello();
-                var constraints = {
-                    offerToReceiveAudio: true,
-                    offerToReceiveVideo: true
-                };
                 var peer = new Peer(host.id, host.name, self.videoWrapperDiv);
                 self.peers[host.id] = peer;
                 peer.rtc.onAddStream = self.setVideoStream;
                 peer.rtc.onICECandidate = function(candidate) {
                     self.ws.sendCandidate(host.id, candidate);
                 };
-                peer.rtc.createOffer(constraints, function(offer) {
-                    self.ws.sendOffer(host.id, offer);
-                }, self.errHandler);
                 // TODO: this is where we open the audio connections to all the
                 // current guests
                 for(var i = 0; i < guests.length; i++) {
@@ -480,7 +476,6 @@ function AdvenShareApp() {
             self.errHandler("Received offer from unknown peer. They should say hello");
             return;
         }
-        peer.rtc.addStream(self.videoStream);
         peer.rtc.createAnswer(offer, function(answer) {
             self.ws.sendAnswer(userID, answer);
         }, self.errHandler);
@@ -515,6 +510,12 @@ function AdvenShareApp() {
         console.log("User " + userName + "(id " + userID + ") said hello");
         var peer = new Peer(userID, userName, self.videoWrapperDiv);
         self.peers[userID] = peer;
+        if(self.isHosting) {
+            peer.rtc.addStream(self.videoStream);
+            peer.rtc.createOffer(self.mediaConstraints, function(offer) {
+                self.ws.sendOffer(userID, offer);
+            }, self.errHandler);
+        }
     };
 
     self.ws.onUserLeftSession = function(userID) {
