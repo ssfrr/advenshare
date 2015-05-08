@@ -479,9 +479,6 @@ function AdvenShareApp() {
         peer.rtc.createAnswer(offer, function(answer) {
             self.ws.sendAnswer(userID, answer);
         }, self.errHandler);
-        peer.rtc.onICECandidate = function(candidate) {
-            self.ws.sendCandidate(userID, candidate);
-        };
     };
 
     self.ws.onAnswer = function(userID, answer) {
@@ -509,6 +506,9 @@ function AdvenShareApp() {
     self.ws.onHello = function(userID, userName) {
         console.log("User " + userName + "(id " + userID + ") said hello");
         var peer = new Peer(userID, userName, self.videoWrapperDiv);
+        peer.rtc.onICECandidate = function(candidate) {
+            self.ws.sendCandidate(userID, candidate);
+        };
         self.peers[userID] = peer;
         if(self.isHosting) {
             peer.rtc.addStream(self.videoStream);
