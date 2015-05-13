@@ -1,6 +1,7 @@
 HTML_DIR = ''
 from flask import Flask, send_from_directory # , request
 from flask_sockets import Sockets
+from geventwebsocket import WebSocketError
 import json
 import logging
 import coloredlogs
