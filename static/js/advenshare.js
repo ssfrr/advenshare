@@ -385,26 +385,35 @@ function AdvenShareApp() {
     self.createSession = function() {
         self.isHosting = true;
         if(webrtcDetectedBrowser == 'firefox') {
-            self.mediaConstraints = {
+            self.videoConstraints = {
                 video: {
                     mozMediaSource: "window",
                     mediaSource: "window",
                 },
+                audio: false
+            };
+            self.audioConstraints = {
+                video: false,
                 audio: {
                     echoCancellation: false
                 }
             };
-            self.openLocalStream(self.mediaConstraints, self.localStreamOpened, self.errHandler);
+            self.openLocalStreams(self.videoConstraints, self.audioConstraints,
+                    self.localStreamsOpened, self.errHandler);
         }
         else if(webrtcDetectedBrowser == 'chrome') {
             getScreenId(function(err, sourceId, constraints) {
-                self.mediaConstraints = {
+                self.videoConstraints = {
                     video: {
                         mandatory: {
                             chromeMediaSource: "desktop",
                             chromeMediaSourceId: sourceId
                         }
                     },
+                    audio: false
+                };
+                self.audioConstraints = {
+                    video: false,
                     audio: {
                         mandatory: {
                             echoCancellation: false,
@@ -419,16 +428,20 @@ function AdvenShareApp() {
                         }
                     }
                 };
-                self.openLocalStream(constraints, self.localStreamOpened, self.errHandler);
+                self.openLocalStreams(self.videoConstraints, self.audioConstraints,
+                        self.localStreamsOpened, self.errHandler);
             });
         }
     }
 
-    self.localStreamOpened = function(stream) {
+    self.localStreamsOpened = function(videoStream, audioStream) {
         var userName = self.nameField.value;
         var sessionName = self.sessionNameField.value;
         var sessionID = randomstring(5);
-        self.setVideoStream(stream);
+        self.setVideoStream(videoStream, true);
+        // only play the audio if we're not hosting, in case the host is using
+        // the audio output as the stream, which would cause feedback
+        self.setAudioStream(audioStream, !self.isHosting);
         self.message.innerHTML = "<p>Session Started. ID: " + sessionID + "</p>";
         self.ws.sendAnnounce(userName);
         self.ws.sendCreateSession(sessionName, sessionID);
@@ -448,7 +461,15 @@ function AdvenShareApp() {
                 self.ws.sendHello();
                 var peer = new Peer(host.id, host.name, self.videoWrapperDiv);
                 self.peers[host.id] = peer;
-                peer.rtc.onAddStream = self.setVideoStream;
+                peer.rtc.onAddStream = function(stream) {
+                    var kind = stream.getTracks()[0].kind;
+                    if(kind == 'video') {
+                        self.setVideoStream(stream, true);
+                    }
+                    else if(kind == 'audio') {
+                        self.setAudioStream(stream, true);
+                    }
+                };
                 peer.rtc.onICECandidate = function(candidate) {
                     self.ws.sendCandidate(host.id, candidate);
                 };
@@ -467,13 +488,26 @@ function AdvenShareApp() {
         };
     };
 
-    self.setVideoStream = function(stream) {
+    self.setVideoStream = function(stream, localDisplay) {
         if(self.videoStream) {
             self.errHandler("Tried to call self.setVideoStream with active stream!");
             return;
         }
         self.videoStream = stream;
-        self.enableStreamView(stream);
+        if(localDisplay) {
+            self.monitorVideoStream(stream);
+        }
+    };
+
+    self.setAudioStream = function(stream, localDisplay) {
+        if(self.audioStream) {
+            self.errHandler("Tried to call self.setAudioStream with active stream!");
+            return;
+        }
+        self.audioStream = stream;
+        if(localDisplay) {
+            self.monitorAudioStream(stream);
+        }
     };
 
     self.ws.onOffer = function(userID, offer) {
@@ -518,6 +552,7 @@ function AdvenShareApp() {
         self.peers[userID] = peer;
         if(self.isHosting) {
             peer.rtc.addStream(self.videoStream);
+            peer.rtc.addStream(self.audioStream);
             peer.rtc.createOffer(self.mediaConstraints, function(offer) {
                 self.ws.sendOffer(userID, offer);
             }, self.errHandler);
@@ -547,15 +582,21 @@ function AdvenShareApp() {
         self.video.onmouseout = null;
     };
 
-    self.enableStreamView = function(stream) {
+    self.monitorVideoStream = function(stream) {
         self.stopForm.classList.add('hidden');
         self.startForm.classList.remove('hidden');
         self.videoWrapperDiv.classList.remove('hidden');
         self.video.onmousemove = self.videoMouseMoveHandler;
         self.video.onmouseout = self.videoMouseOutHandler;
-        //self.videoWrapperDiv.appendChild(self.video);
         attachMediaStream(self.video, stream);
         self.video.play();
+    };
+
+    // TODO: keep some reference to this audio tag so we can clean up.
+    self.monitorAudioStream = function(stream) {
+        var audio = new Audio();
+        attachMediaStream(audio, stream);
+        audio.play();
     };
 
     self.errHandler = function(err) {
@@ -566,13 +607,22 @@ function AdvenShareApp() {
                     "in `about:config`, and add this domain to " +
                     "media.getusermedia.screensharing.allowed_domains");
         }
+        else if(err.name == "InvalidStateError") {
+            alert('Error opening media:\n ' +
+                    'Make sure you have the proper chrome extension installed:\n' +
+                    'https://chrome.google.com/webstore/detail/screen-capturing/ajhifddimkapgcifgcodmmfdlknahffk');
+        }
     };
 
-    self.openLocalStream = function(constraints, success, failure) {
-        // success is called with the stream as it's only argument
+    self.openLocalStreams = function(videoConstraints, audioConstraints, success, failure) {
+        // success is called with video and audio streams as arguments
         // failure is called with a single error argument. Not sure what type.
         try {
-            getUserMedia(constraints, success, failure);
+            getUserMedia(videoConstraints, function(videoStream) {
+                getUserMedia(audioConstraints, function(audioStream) {
+                    success(videoStream, audioStream);
+                }, failure);
+            }, failure);
         } catch(e) {
             failure(e);
         }
