@@ -1,3 +1,16 @@
+html, body {
+    min-height: 100%;
+    color: #aaaaaa;
+}
+body {
+    background-color: #0a021d;
+    background-image: url("/static/img/mi_footer_blur.png");
+    background-position: center bottom;
+    background-repeat: no-repeat;
+    background-size: contain;
+}
+
+
 #video-wrapper {
     display: inline-block;
     position: relative;
