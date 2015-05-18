@@ -1,13 +1,32 @@
 html, body {
     min-height: 100%;
-    color: #aaaaaa;
+    color: #A6ACB0;
 }
+
 body {
-    background-color: #0a021d;
+    background-color: #011E34;
     background-image: url("/static/img/mi_footer_blur.png");
     background-position: center bottom;
     background-repeat: no-repeat;
     background-size: contain;
+}
+
+h1 {
+    text-align: center;
+    margin-top: 40px;
+    font-family: "Aldrich";
+    font-size: 50pt;
+    color: #093252;
+    text-shadow:
+        -1px  0px 0px #A6ACB0,
+         1px  0px 0px #A6ACB0,
+         0px  1px 0px #A6ACB0,
+         0px -0px 0px #A6ACB0,
+
+        -1px  1px 0px #A6ACB0,
+         1px  1px 0px #A6ACB0,
+        -1px -1px 0px #A6ACB0,
+         1px -1px 0px #A6ACB0;
 }
 
 
@@ -17,6 +36,10 @@ body {
     /* if you don't set the font-size to zero there will be a gap below the
      * video to account for descenders (y, g, q, etc.) */
     font-size: 0;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 20px;
+    width: 100%;
 }
 
 .video {
@@ -64,5 +87,5 @@ body {
 }
 
 .hidden {
-    display: none;
+    display: none !important;
 }

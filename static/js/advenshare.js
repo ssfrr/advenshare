@@ -575,16 +575,16 @@ function AdvenShareApp() {
         attachMediaStream(self.video, null);
         //self.videoWrapperDiv.removeChild(self.video);
 
-        self.stopForm.classList.remove('hidden');
-        self.startForm.classList.add('hidden');
+        self.stopForm.classList.add('hidden');
+        self.startForm.classList.remove('hidden');
         self.videoWrapperDiv.classList.add('hidden');
         self.video.onmousemove = null;
         self.video.onmouseout = null;
     };
 
     self.monitorVideoStream = function(stream) {
-        self.stopForm.classList.add('hidden');
-        self.startForm.classList.remove('hidden');
+        self.stopForm.classList.remove('hidden');
+        self.startForm.classList.add('hidden');
         self.videoWrapperDiv.classList.remove('hidden');
         self.video.onmousemove = self.videoMouseMoveHandler;
         self.video.onmouseout = self.videoMouseOutHandler;

@@ -1,29 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <title>AdvenShare</title>
     <meta charset="utf-8"/>
-    <link href="static/css/style.css" rel="stylesheet"/>
+    <link rel="stylesheet" type="text/css" href="static/css/Skeleton-2.0.4/css/normalize.css"/>
+    <link rel="stylesheet" type="text/css" href="static/css/Skeleton-2.0.4/css/skeleton.css"/>
+    <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Aldrich"/>
+    <link rel="stylesheet" type="text/css" href="static/css/style.css"/>
 </head>
 <body>
-<h1>Welcome to AdvenShare</h1>
-<div id="controls">
-    <div id="start-form">
-        <input value="Player Name" id="name-field" type="text">
-        <br/>
-        <input value="Game Name" id="session-name-field" type="text">
-        <input value="Create Session" onclick="app.createSession();" type="button">
-        <br/>
-        <input value="Session ID" id="session-id-field" type="text">
-        <input value="Join Session" onclick="app.joinSession();" type="button">
+<div class="container">
+    <div class="row">
+        <div class="twelve columns">
+            <h1>AdvenShare</h1>
+        </div>
     </div>
-    <div id="stop-form" class="hidden">
-        <input value="Stop Session" onclick="app.stopSession();" type="button">
+    <div id="controls">
+        <div id="start-form">
+            <div class="row">
+                <div class="eight columns">
+                    <input value="Player Name" id="name-field" type="text">
+                </div>
+            </div>
+            <div class="row">
+                <div class="six columns">
+                    <input class="u-full-width" value="Game Name" id="session-name-field" type="text">
+                </div>
+                <div class="two columns">
+                    <input value="Create Session" onclick="app.createSession();" type="button">
+                </div>
+            </div>
+            <div class="row">
+                <div class="six columns">
+                    <input class="u-full-width" value="Session ID" id="session-id-field" type="text">
+                </div>
+                <div class="two columns">
+                    <input value="Join Session" onclick="app.joinSession();" type="button">
+                </div>
+            </div>
+        </div>
+        <div id="stop-form" class="hidden">
+            <input value="Stop Session" onclick="app.stopSession();" type="button">
+        </div>
     </div>
-</div>
-<div id="message"></div>
-<div id="video-wrapper" class="hidden">
-    <video id="screen-video"></video>
-</div>
+    <div class="row">
+        <div id="message" class="eight columns"></div>
+    </div>
+    <div id="video-wrapper" class="row hidden">
+        <div class="twelve columns">
+            <video id="screen-video" class="u-full-width"></video>
+        </div>
+    </div>
+</div> <!-- container -->
 <script src="static/js/getScreenId.js"></script>
 <script src="static/js/adapter.js"></script>
 <script src="static/js/advenshare.js"></script>
