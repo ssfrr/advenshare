@@ -3,6 +3,9 @@ html, body {
 }
 
 #footer {
+    /* if you don't set the font-size to zero there will be a gap below the
+     * video to account for descenders (y, g, q, etc.) */
+    font-size: 0;
 }
 
 #footer img {
