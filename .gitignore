@@ -5,3 +5,4 @@ mouserver/build
 *.egg-info
 *.pyc
 .module-cache
+static/js/advenshare.js
