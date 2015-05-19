@@ -370,6 +370,10 @@ function AdvenShareApp() {
 
     // called from the button click
     self.createSession = function() {
+        if(self.sessionNameField.value == '') {
+            alert("Please enter a Session Name");
+            return;
+        }
         self.isHosting = true;
         if(webrtcDetectedBrowser == 'firefox') {
             self.videoConstraints = {
@@ -438,6 +442,15 @@ function AdvenShareApp() {
     self.joinSession = function() {
         var userName = self.nameField.value;
         var sessionID = self.sessionIDField.value;
+
+        if(userName == '') {
+            alert("Please enter your name");
+            return;
+        }
+        if(sessionID == '') {
+            alert("Please enter a session ID");
+            return;
+        }
         self.ws.sendAnnounce(userName);
         self.ws.sendJoinSession(sessionID);
 
