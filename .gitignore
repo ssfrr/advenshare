@@ -4,3 +4,4 @@ mouserver/build
 *.so
 *.egg-info
 *.pyc
+.module-cache

@@ -53,6 +53,14 @@ h1 {
 }
 
 
+#cursor-parent {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+}
+
 #video-wrapper {
     display: inline-block;
     position: relative;
@@ -75,16 +83,24 @@ h1 {
 }
 
 .cursor {
+    position: absolute;
+}
+
+.cursor img {
     z-index: 1;
     position: absolute;
     width: 32px;
     height: 32px;
+    top: -16px;
+    left: -16px;
 }
 
-.cursor-label {
+.cursor span {
     z-index: 1;
     visibility:visible;
     position: absolute;
+    top: 0px;
+    left: 0px;
     font-size: 10pt;
     color: black;
     /* create a white halo around the black text so it's visible on all backgrounds */

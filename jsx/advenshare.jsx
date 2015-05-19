@@ -336,7 +336,7 @@ function Peer(id, name, cursorParent) {
     self.id = id;
     self.name = name;
     self.rtc = new RTCConn();
-    self.cursor = React.render(React.createElement(PlayerCursor, {parent: cursorParent, name: self.name}), cursorParent);
+    self.cursor = React.render(<PlayerCursor parent={cursorParent} name={self.name} />, cursorParent);
 
     self.mouseMove = function(x, y) {
         self.cursor.setLocation(x, y);
@@ -657,12 +657,12 @@ function AdvenShareApp() {
     self.video.onkeyup = function(ev) {};
 }
 
-var CursorViewer = React.createClass({displayName: "CursorViewer",
+var CursorViewer = React.createClass({
     render: function() {
     }
 });
 
-var PlayerCursor = React.createClass({displayName: "PlayerCursor",
+var PlayerCursor = React.createClass({
     getInitialState: function() {
         return {
             active: false,
@@ -686,14 +686,14 @@ var PlayerCursor = React.createClass({displayName: "PlayerCursor",
         };
         if(this.state.active) {
             return (
-                React.createElement("div", {style: cursorStyle, className: "cursor"}, 
-                    React.createElement("img", {src: "/static/img/crosshair.cur"}), 
-                    React.createElement("span", null, React.createElement("p", null, this.props.name))
-                )
+                <div style={cursorStyle} className="cursor">
+                    <img src="/static/img/crosshair.cur" />
+                    <span><p>{this.props.name}</p></span>
+                </div>
             );
         }
         else {
-            return React.createElement("div", null);
+            return <div></div>;
         }
     }
 });
