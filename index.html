@@ -44,16 +44,22 @@
                     </div>
                 </div>
                 <div id="stop-form" class="hidden">
-                    <input value="Stop Session" onclick="app.stopSession();" type="button">
+                    <div class="row">
+                        <div class="six columns">
+                            <input value="Stop Session" onclick="app.stopSession();" type="button">
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="row">
                 <div id="message" class="eight columns"></div>
             </div>
-            <div class="twelve columns">
-                <div id="video-wrapper" class="row hidden">
-                    <video id="screen-video" class="u-full-width"></video>
-                    <div id="cursor-parent"></div>
+            <div class="row">
+                <div class="twelve columns">
+                    <div id="video-wrapper" class="row hidden">
+                        <video id="screen-video" class="u-full-width"></video>
+                        <div id="cursor-parent"></div>
+                    </div>
                 </div>
             </div>
         </div> <!-- container -->
