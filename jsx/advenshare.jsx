@@ -224,6 +224,11 @@ function WSConn() {
 function RTCConn() {
     var self = this;
     self.pc = new RTCPeerConnection();
+
+    self.close = function() {
+        self.pc.close();
+    }
+
     self.createOffer = function(constraints, success, failure) {
         self.pc.createOffer(function(offer) {
             offer.sdp = self.processSDP(offer.sdp);
@@ -328,7 +333,6 @@ function RTCConn() {
     self.onAddStream = function(stream) {};
 }
 
-
 // TODO: probably should wrap some of the RTC interactions instead of users
 // just reaching inside to the internal rtc object.
 function Peer(id, name, cursorParent) {
@@ -337,6 +341,10 @@ function Peer(id, name, cursorParent) {
     self.name = name;
     self.rtc = new RTCConn();
     self.cursor = React.render(<PlayerCursor parent={cursorParent} name={self.name} />, cursorParent);
+
+    self.close = function() {
+        self.rtc.close();
+    };
 
     self.mouseMove = function(x, y) {
         self.cursor.setLocation(x, y);
@@ -562,7 +570,10 @@ function AdvenShareApp() {
     self.ws.onUserLeftSession = function(userID) {
         var peer = self.peers[userID];
         console.log("User " + peer.name + "(id " + peer.id + ") left session");
-        delete self.peers[userID];
+        if(userID in self.peers) {
+            self.peers[userID].close();
+            delete self.peers[userID];
+        }
     }
 
     self.setMessage = function(msg) {
