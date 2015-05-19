@@ -13,6 +13,7 @@ Development Setup
 * pip (python package manager)
 * GNU make
 * react-tools (install with npm)
+* node (install `nodejs` and `nodejs-legacy` packages with apt)
 * various python dependencies (install with `pip install -r requirements.txt`)
 
 ### Make Targets
