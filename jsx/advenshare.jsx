@@ -335,24 +335,23 @@ function RTCConn() {
 
 // TODO: probably should wrap some of the RTC interactions instead of users
 // just reaching inside to the internal rtc object.
-function Peer(id, name, cursorParent) {
+function Peer(id, name) {
     var self = this;
     self.id = id;
     self.name = name;
     self.rtc = new RTCConn();
-    self.cursor = React.render(<PlayerCursor parent={cursorParent} name={self.name} />, cursorParent);
+    self.cursorPos = null;
 
     self.close = function() {
         self.rtc.close();
     };
 
     self.mouseMove = function(x, y) {
-        self.cursor.setLocation(x, y);
-        self.cursor.setActive(true);
+        self.cursorPos = {x: x, y: y};
     };
 
     self.mouseOut = function() {
-        self.cursor.setActive(false);
+        self.cursorPos = null;
     }
 }
 
@@ -467,7 +466,7 @@ function AdvenShareApp() {
                 // introduce ourself to the others in the session. It's polite.
                 // (and required)
                 self.ws.sendHello();
-                var peer = new Peer(host.id, host.name, self.cursorParentDiv);
+                var peer = new Peer(host.id, host.name);
                 self.peers[host.id] = peer;
                 peer.rtc.onAddStream = function(stream) {
                     var kind = stream.getTracks()[0].kind;
@@ -485,7 +484,7 @@ function AdvenShareApp() {
                 // current guests
                 for(var i = 0; i < guests.length; i++) {
                     var guest = guests[i];
-                    var peer = new Peer(guest.id, guest.name, self.cursorParentDiv);
+                    var peer = new Peer(guest.id, guest.name);
                     self.peers[guest.id] = peer;
                 }
             }
@@ -545,15 +544,17 @@ function AdvenShareApp() {
 
     self.ws.onMouseMove = function(userID, x, y) {
         self.peers[userID].mouseMove(x, y);
+        self.renderCursors();
     };
 
     self.ws.onMouseOut = function(userID) {
         self.peers[userID].mouseOut();
+        self.renderCursors();
     };
 
     self.ws.onHello = function(userID, userName) {
         console.log("User " + userName + "(id " + userID + ") said hello");
-        var peer = new Peer(userID, userName, self.cursorParentDiv);
+        var peer = new Peer(userID, userName);
         peer.rtc.onICECandidate = function(candidate) {
             self.ws.sendCandidate(userID, candidate);
         };
@@ -573,6 +574,7 @@ function AdvenShareApp() {
         if(userID in self.peers) {
             self.peers[userID].close();
             delete self.peers[userID];
+            self.renderCursors();
         }
     }
 
@@ -664,61 +666,62 @@ function AdvenShareApp() {
         };
     }
 
-    // don't assing this directly to the video, we'll do that when it's enabled
+    // don't assign this directly to the video, we'll do that when it's enabled
     self.videoMouseOutHandler = function(ev) {
         self.ws.sendMouseOut();
-    }
+    };
 
-    self.video.onmousedown = function(ev) {
+    self.cursorParentDiv.onmousedown = function(ev) {
         var ratios = self.getMouseRatios(ev, this);
         self.ws.sendMouseDown(ratios.x, ratios.y, ev.button);
-    }
-    self.video.onmouseup = function(ev) {
+    };
+    self.cursorParentDiv.onmouseup = function(ev) {
         var ratios = self.getMouseRatios(ev, this);
         self.ws.sendMouseUp(ratios.x, ratios.y, ev.button);
-    }
-    self.video.onkeydown = function(ev) {};
-    self.video.onkeyup = function(ev) {};
+    };
+    self.cursorParentDiv.onkeydown = function(ev) {};
+    self.cursorParentDiv.onkeyup = function(ev) {};
+
+    // this should be called whenver the cursors change, to re-render them
+    self.renderCursors = function() {
+        var peerList = [];
+        for(k in self.peers) {
+            peerList.push(self.peers[k]);
+        }
+        React.render(<CursorViewer peers={peerList} parent={self.cursorParentDiv} />,
+                     self.cursorParentDiv);
+    };
 }
 
 var CursorViewer = React.createClass({
     render: function() {
+        var self = this;
+        var compList =  self.props.peers.filter(function(peer) {
+            return peer.cursorPos !== null;
+        }).map(function(peer) {
+            return <PlayerCursor
+                key={peer.id}
+                name={peer.name}
+                x={peer.cursorPos.x}
+                y={peer.cursorPos.y}
+                parent={self.props.parent} />
+        });
+        return <div>{compList}</div>;
     }
 });
 
 var PlayerCursor = React.createClass({
-    getInitialState: function() {
-        return {
-            active: false,
-            x: null,
-            y: null
-        };
-    },
-
-    setLocation: function(x, y) {
-        this.setState({x: x, y: y});
-    },
-
-    setActive: function(active) {
-        this.setState({active: active});
-    },
-
     render: function() {
         var cursorStyle = {
-            left: this.state.x * this.props.parent.clientWidth,
-            top: this.state.y * this.props.parent.clientHeight
+            left: this.props.x * this.props.parent.clientWidth,
+            top: this.props.y * this.props.parent.clientHeight
         };
-        if(this.state.active) {
-            return (
-                <div style={cursorStyle} className="cursor">
-                    <img src="/static/img/crosshair.cur" />
-                    <span><p>{this.props.name}</p></span>
-                </div>
-            );
-        }
-        else {
-            return <div></div>;
-        }
+        return (
+            <div style={cursorStyle} className="cursor">
+                <img src="/static/img/crosshair.cur" />
+                <span><p>{this.props.name}</p></span>
+            </div>
+        );
     }
 });
 
