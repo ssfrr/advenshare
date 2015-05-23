@@ -8,6 +8,7 @@ from getopt import gnu_getopt, GetoptError
 from mouserver_ext import grab_window, Window
 import random
 import string
+import time
 
 
 class Mouserver:
@@ -179,9 +180,15 @@ def main():
     else:
         window = Window(window)
 
+    log = logging.getLogger("main")
     coloredlogs.install(level=loglevel)
-    server = Mouserver(url, session, window)
-    server.run_forever()
+    while True:
+        server = Mouserver(url, session, window)
+        server.run_forever()
+        
+        log.warning("Restarting after 5 seconds due to dropped connection")
+        time.sleep(5.0)
+
 
 if __name__ == '__main__':
     main()
