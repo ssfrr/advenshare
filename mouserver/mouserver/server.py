@@ -63,8 +63,8 @@ class Mouserver:
         self.ws_log.error(error)
 
     def on_close(self, ws):
-        self.ws_log.error("Connection closed, exiting")
-        sys.exit(0)
+        self.ws_log.error("Connection closed")
+        raise MouserverConnectionClosedError("Connection closed")
 
     def on_open(self, ws):
         self.ws_log.info("Connection established")
@@ -110,6 +110,8 @@ class Mouserver:
         self.window.mouse_move_ratio(x, y)
         self.window.mouse_up(button)
 
+class MouserverConnectionClosedError(Exception):
+    pass
 
 def print_usage():
     print "usage: %s -u <websocket_url> -s <session_id> [-w <window_id>]" % sys.argv[0]
@@ -185,9 +187,8 @@ def main():
     while True:
         server = Mouserver(url, session, window)
         server.run_forever()
-        
-        log.warning("Restarting after 5 seconds due to dropped connection")
         time.sleep(5.0)
+        log.warning("Restarting after 5 seconds due to dropped connection")
 
 
 if __name__ == '__main__':
