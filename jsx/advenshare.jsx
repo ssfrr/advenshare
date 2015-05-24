@@ -335,13 +335,13 @@ function RTCConn() {
 
 // TODO: probably should wrap some of the RTC interactions instead of users
 // just reaching inside to the internal rtc object.
-function Peer(id, name, isHost=false) {
+function Peer(id, name, isHost) {
     var self = this;
     self.id = id;
     self.name = name;
     self.rtc = new RTCConn();
     self.cursorPos = null;
-    self.isHost = isHost;
+    self.isHost = isHost || false;
 
     self.close = function() {
         self.rtc.close();
