@@ -18,7 +18,7 @@ function randomstring(len){
 
 function WSConn() {
     var self = this;
-    self.verbose = false;
+    self.verbose = true;
     self.sessionID = "";
     self.id = randomstring(5);
     self.ws = new WebSocket("wss://" + location.host + "/ws/user");
@@ -335,12 +335,13 @@ function RTCConn() {
 
 // TODO: probably should wrap some of the RTC interactions instead of users
 // just reaching inside to the internal rtc object.
-function Peer(id, name) {
+function Peer(id, name, isHost=false) {
     var self = this;
     self.id = id;
     self.name = name;
     self.rtc = new RTCConn();
     self.cursorPos = null;
+    self.isHost = isHost;
 
     self.close = function() {
         self.rtc.close();
@@ -366,6 +367,7 @@ function AdvenShareApp() {
     self.message = document.getElementById("message");
     self.videoWrapperDiv = document.getElementById("video-wrapper");
     self.cursorParentDiv = document.getElementById("cursor-parent");
+    self.playerListDiv = document.getElementById("player-list");
     self.video = document.getElementById("screen-video");
     // form elements
     self.nameField = document.getElementById("name-field");
@@ -466,7 +468,7 @@ function AdvenShareApp() {
                 // introduce ourself to the others in the session. It's polite.
                 // (and required)
                 self.ws.sendHello();
-                var peer = new Peer(host.id, host.name);
+                var peer = new Peer(host.id, host.name, true);
                 self.peers[host.id] = peer;
                 peer.rtc.onAddStream = function(stream) {
                     var kind = stream.getTracks()[0].kind;
@@ -487,6 +489,7 @@ function AdvenShareApp() {
                     var peer = new Peer(guest.id, guest.name);
                     self.peers[guest.id] = peer;
                 }
+                self.renderPlayerList();
             }
             else {
                 self.setMessage("Join Failed: " + status);
@@ -566,6 +569,7 @@ function AdvenShareApp() {
                 self.ws.sendOffer(userID, offer);
             }, self.errHandler);
         }
+        self.renderPlayerList();
     };
 
     self.ws.onUserLeftSession = function(userID) {
@@ -575,6 +579,7 @@ function AdvenShareApp() {
             self.peers[userID].close();
             delete self.peers[userID];
             self.renderCursors();
+            self.renderPlayerList();
         }
     }
 
@@ -691,6 +696,21 @@ function AdvenShareApp() {
         React.render(<CursorViewer peers={peerList} parent={self.cursorParentDiv} />,
                      self.cursorParentDiv);
     };
+
+    // should be called when peer list changes
+    self.renderPlayerList = function() {
+        var peerList = [];
+        for(k in self.peers) {
+            // Don't include ourselves in the list
+            // Also, we don't include the host, as it's currently not really 
+            // practical for the host to be a participant.
+            if(k != self.ws.id && !self.peers[k].isHost) {
+                peerList.push(self.peers[k]);
+            }
+        }
+        React.render(<PlayerList peers={peerList} />,
+                     self.playerListDiv);
+    };
 }
 
 var CursorViewer = React.createClass({
@@ -722,6 +742,38 @@ var PlayerCursor = React.createClass({
                 <span><p>{this.props.name}</p></span>
             </div>
         );
+    }
+});
+
+var PlayerList = React.createClass({
+    render: function() {
+        var players = this.props.peers.map(function(peer) {
+            return <PlayerListEntry name={peer.name} key={peer.id} />;
+        });
+        if(players.length < 1) {
+            return <span>Playing by yourself.</span>;
+        } else if(players.length == 1)  {
+            return <span>Playing with {players[0]}.</span> ;
+        } else {
+            pl = [];
+            for(var i=0; i<players.length-1; i++) {
+                pl.push(players[i]);
+                if(i < players.length-2 || players.length > 2) {
+                    pl.push(', ');
+                } else {
+                    pl.push(' ');
+                }
+            }
+            pl.push("and ");
+            pl.push(players[players.length-1]);
+            return <span>Playing with {pl}.</span>;
+        }
+    }
+});
+
+var PlayerListEntry = React.createClass({
+    render: function() {
+        return <a className="player">{this.props.name}</a>;
     }
 });
 

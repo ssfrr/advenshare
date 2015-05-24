@@ -128,3 +128,8 @@ h1 {
 .hidden {
     display: none !important;
 }
+
+a.player {
+    font-weight: bold;
+    color: white;
+}
