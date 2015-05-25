@@ -4,7 +4,7 @@ AdvenShare
 ==========
 
 AdvenShare is a collaborative platform for playing point-and-click adventure
-games.
+games in your browser.
 
 Development Setup
 -----------------
