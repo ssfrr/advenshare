@@ -62,8 +62,16 @@
                     </div>
                 </div>
             </div>
-            <div class="row">
-                <div id="player-list" class="eight columns"></div>
+            <div id="chat" class="hidden">
+                <div class="row">
+                    <div id="player-list" class="twelve columns"></div>
+                </div>
+                <div class="row" id="chat-history"></div>
+                <div class="row" id="chat-input">
+                    <div class="twelve columns">
+                        <input class="u-full-width" type="text" id="chat-field">
+                    </div>
+                </div>
             </div>
         </div> <!-- container -->
     </div> <!-- content -->
@@ -72,6 +80,7 @@
     </div>
 </div> <!-- wrapper -->
 <script src="/static/js/react-0.13.3/build/react.js"></script>
+<script src="/static/js/marked.min.js"></script>
 <script src="/static/js/getScreenId.js"></script>
 <script src="/static/js/adapter.js"></script>
 <script src="/static/js/advenshare.js"></script>

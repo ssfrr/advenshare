@@ -133,3 +133,17 @@ a.player {
     font-weight: bold;
     color: white;
 }
+
+.chat-name {
+    font-weight: bold;
+    color: white;
+}
+
+#chat-history {
+    height: 240px;
+    overflow-y: scroll;
+}
+
+.chat-status-entry {
+    font-style: italic;
+}

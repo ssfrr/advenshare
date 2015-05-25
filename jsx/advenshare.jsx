@@ -74,6 +74,12 @@ function WSConn() {
         else if(msgData['type'] == 'mouseOut' && self.onMouseOut) {
             self.onMouseOut(msgData['srcID']);
         }
+        else if(msgData['type'] == 'chat' && self.onChat) {
+            self.onChat(msgData['srcID'], msgData['message']);
+        }
+        else if(msgData['type'] == 'chatStatus' && self.onChat) {
+            self.onChat(msgData['message']);
+        }
         else if(msgData['type'] == 'error' && self.onError) {
             self.onError(msgData['message']);
         }
@@ -205,7 +211,17 @@ function WSConn() {
             userName: self.name,
             destID: '*'
         });
-    }
+    };
+
+    self.sendChat = function(msg) {
+        self.sendMsg({
+            type: 'chat',
+            sessionID: self.sessionID,
+            srcID: self.id,
+            destID: '*',
+            message: msg
+        });
+    };
 
 
     self.onJoinSessionResponse = function(status, sessionID, sessionName, host, guests) {};
@@ -218,6 +234,8 @@ function WSConn() {
     self.onMouseDown = function(userID, x, y, button) {};
     self.onMouseUp = function(userID, x, y, button) {};
     self.onMouseOut = function(userID) {};
+    self.onChat = function(userID, msg) {};
+    self.onChatStatus = function(msg) {};
     self.onError = function(message) {console.log("WS Error: " + message);};
 }
 
@@ -360,6 +378,7 @@ function AdvenShareApp() {
     var self = this;
     // peers is a dict of Peer objects, keyed on the peer ID
     self.peers = {};
+    self.chatEntries = [];
     self.ws = new WSConn();
     self.videoStream = null;
     self.startForm = document.getElementById("start-form");
@@ -368,11 +387,14 @@ function AdvenShareApp() {
     self.videoWrapperDiv = document.getElementById("video-wrapper");
     self.cursorParentDiv = document.getElementById("cursor-parent");
     self.playerListDiv = document.getElementById("player-list");
+    self.chatDiv = document.getElementById("chat");
+    self.chatHistoryDiv = document.getElementById("chat-history");
     self.video = document.getElementById("screen-video");
     // form elements
     self.nameField = document.getElementById("name-field");
     self.sessionNameField = document.getElementById("session-name-field");
     self.sessionIDField = document.getElementById("session-id-field");
+    self.chatField = document.getElementById("chat-field");
     self.lastMouseMove = 0;
     self.isHosting = false;
     self.mediaConstraints = null;
@@ -570,22 +592,51 @@ function AdvenShareApp() {
             }, self.errHandler);
         }
         self.renderPlayerList();
+        self.addChatStatus(peer.name + " joined the session.");
     };
 
     self.ws.onUserLeftSession = function(userID) {
         var peer = self.peers[userID];
         console.log("User " + peer.name + "(id " + peer.id + ") left session");
         if(userID in self.peers) {
-            self.peers[userID].close();
+            var peer = self.peers[userID];
+            self.addChatStatus(peer.name + " left the session.");
+            peer.close();
             delete self.peers[userID];
             self.renderCursors();
             self.renderPlayerList();
         }
     }
 
+    self.ws.onChat = function(userID, msg) {
+        var name = userID;
+        if(userID in self.peers) {
+            name = self.peers[userID].name;
+        }
+        self.addChat(name, msg);
+    }
+
+    self.ws.onChatStatus = function(msg) {
+        self.addChatStatus(msg);
+    }
+
     self.setMessage = function(msg) {
         self.message.innerHTML = "<p>" + msg + "</p>";
     };
+
+    self.addChat = function(name, msg) {
+        self.chatEntries.push(
+            <ChatEntry name={name} message={msg} key={randomstring(32)} />
+        );
+        self.renderChat();
+    }
+    
+    self.addChatStatus = function(msg) {
+        self.chatEntries.push(
+            <ChatStatusEntry message={msg} key={randomstring(32)} />
+        );
+        self.renderChat();
+    }
 
     // called from the button click
     self.stopSession = function() {
@@ -596,6 +647,7 @@ function AdvenShareApp() {
         self.stopForm.classList.add('hidden');
         self.startForm.classList.remove('hidden');
         self.videoWrapperDiv.classList.add('hidden');
+        self.chatDiv.classList.add('hidden');
         self.cursorParentDiv.onmousemove = null;
         self.cursorParentDiv.onmouseout = null;
     };
@@ -604,6 +656,7 @@ function AdvenShareApp() {
         self.stopForm.classList.remove('hidden');
         self.startForm.classList.add('hidden');
         self.videoWrapperDiv.classList.remove('hidden');
+        self.chatDiv.classList.remove('hidden');
         self.cursorParentDiv.onmousemove = self.videoMouseMoveHandler;
         self.cursorParentDiv.onmouseout = self.videoMouseOutHandler;
         attachMediaStream(self.video, stream);
@@ -687,6 +740,17 @@ function AdvenShareApp() {
     self.cursorParentDiv.onkeydown = function(ev) {};
     self.cursorParentDiv.onkeyup = function(ev) {};
 
+    self.chatField.onkeypress = function(ev) {
+        var event = ev || window.event;
+        var key = event.which || event.keyCode;
+        if(key == '13') {
+            msg = self.chatField.value;
+            self.chatField.value = '';
+            self.ws.sendChat(msg);
+            self.addChat("Me", msg);
+        }
+    }
+
     // this should be called whenver the cursors change, to re-render them
     self.renderCursors = function() {
         var peerList = [];
@@ -710,6 +774,20 @@ function AdvenShareApp() {
         }
         React.render(<PlayerList peers={peerList} />,
                      self.playerListDiv);
+    };
+
+    self.renderChat = function() {
+        var autoscroll = (self.chatHistoryDiv.scrollTop >= 
+            (self.chatHistoryDiv.scrollHeight - self.chatHistoryDiv.clientHeight));
+
+        console.log(self.chatHistoryDiv.scrollTop + " " + 
+            (self.chatHistoryDiv.scrollHeight - self.chatHistoryDiv.clientHeight));
+        React.render(<ChatHistory entries={self.chatEntries} />,
+            self.chatHistoryDiv);
+
+        if(autoscroll) {
+            self.chatHistoryDiv.scrollTop = self.chatHistoryDiv.scrollHeight;
+        }
     };
 }
 
@@ -775,6 +853,64 @@ var PlayerListEntry = React.createClass({
     render: function() {
         return <a className="player">{this.props.name}</a>;
     }
+});
+
+var ChatHistory = React.createClass({
+    render: function() {
+        return (
+            <div>{this.props.entries}</div>
+        );
+    }
+});
+
+var ChatEntry = React.createClass({
+    render: function() {
+        var rawMarkup = marked(this.props.message, {sanitize: true});
+        return (
+            <div className="twelve columns chat-entry">
+                <span className="chat-name">{this.props.name}: </span>
+                <span dangerouslySetInnerHTML={{__html: rawMarkup}} />
+            </div>
+        );
+    }
+});
+
+var ChatStatusEntry = React.createClass({
+    render: function() {
+        var rawMarkup = marked(this.props.message, {sanitize: true});
+        return (
+            <div className="twelve columns chat-status-entry">
+                <span dangerouslySetInnerHTML={{__html: rawMarkup}} />
+            </div>
+        );
+    }
+});
+
+/* Markdown rendering options for chat */
+var inlineMarkdownRenderer = new marked.Renderer();
+inlineMarkdownRenderer.paragraph = function(text) { return text; };
+inlineMarkdownRenderer.link = function(href, title, text) {
+    if (this.options.sanitize) {
+        try {
+            var prot = decodeURIComponent(unescape(href))
+                .replace(/[^\w:]/g, '')
+                .toLowerCase();
+        } catch (e) {
+            return '';
+        }
+        if (prot.indexOf('javascript:') === 0 || prot.indexOf('vbscript:') === 0) {
+            return '';
+        }
+    }
+    var out = '<a href="' + href + '"';
+    if (title) {
+        out += ' title="' + title + '"';
+    }
+    out += ' target="_blank">' + text + '</a>';
+    return out;
+};
+marked.setOptions({
+    renderer: inlineMarkdownRenderer,
 });
 
 var app = new AdvenShareApp();
